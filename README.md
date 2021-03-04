@@ -1,2 +1,2 @@
 # chorepoint
-a chore tracker and reward system
+a chore tracker and reward system using flask

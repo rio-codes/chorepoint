@@ -7,11 +7,21 @@
   <body>
     <div class="container">
       <h1>chorepoint admin dashboard</h1>
+      <br>
+      <div class="row">
+        <div class="col-sm">
       <h2>tasks pending approval</h2>
       {{ pendingTaskTable }}
+      </div>
+      <div class="col-sm">
+        <h2>rewards pending approval</h2>
+        {{ pendingRewardTable }}
+        </div>
+        </div>
       <br>
       <h2>active tasks</h2>
       {{ activeTaskTable }}
+      <br>
     </div>
   </body>
 </html>

@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_mysqldb import MySQL
 from flask_table import Table, Col, LinkCol, ButtonCol
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -13,11 +14,24 @@ app.config['MYSQL_DB'] = 'chorepoint'
 app.config['MYSQL_UNIX_SOCKET'] = '/home/rio/mysql/mysqld.sock'
 mysql = MySQL(app)
 
+class frequencyCol(Col):
+    def td_format(self, content):
+        if content == '1':
+            return 'every day'
+        else:
+            return 'every ' + content + ' days'
+
+class usernameCol(Col):
+    def td_format(self, content):
+        username = User.get_username_from_userID(content)
+        return username
+
+
 class TaskTable(Table):
     taskName = Col('Task Name')
     points = Col('Points')
-    assignedUserID = Col('Assigned User ID')
-    frequency = Col('Frequency')
+    assignedUserID = usernameCol('User')
+    frequency = frequencyCol('Frequency')
 
 class RewardTable(Table):
     rewardName = Col('Reward Name')
@@ -37,8 +51,8 @@ class PendingRewardTable(Table):
 class PendingTaskTable(Table):
     taskName = Col('Task Name')
     points = Col('Points')
-    assignedUserID = Col('Assigned User ID')
-    frequency = Col('Frequency')
+    assignedUserID = usernameCol('User')
+    frequency = frequencyCol('Frequency')
     approved = ButtonCol('Approve', 'approveTask', url_kwargs=dict(taskID='taskID'))
 
 class UserTaskTable(Table):
@@ -60,6 +74,10 @@ class UserAvailableRewardsTable(Table):
     redeem = ButtonCol('Redeem', 'redeem', url_kwargs=dict(rewardID='rewardID'))
 
 class UserPendingRewardsTable(Table):
+    rewardName = Col('Reward Name')
+    points = Col('Points')
+
+class UserRedeemedRewardsTable(Table):
     rewardName = Col('Reward Name')
     points = Col('Points')
 
@@ -124,6 +142,23 @@ class Reward(object):
         columns = [col[0] for col in cur.description]
         rewards = [dict(zip(columns, row)) for row in cur.fetchall()]
         return rewards
+    
+    def create_next_reward(rewardID):
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT rewardID FROM rewards ORDER BY rewardID DESC LIMIT 1")
+        lastRewardID = cur.fetchall()[0]
+        newRewardID = int((lastRewardID[0])) + 1
+        r = rewardID
+        print(r)
+        n = newRewardID
+        print(n)
+        a = 0
+
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO rewards (rewardID, rewardName, points, approved, assignedUserID) SELECT %s, rewardName, points, %s, assignedUserID FROM rewards WHERE rewardID=%s" % (n, a, r))
+        mysql.connection.commit()
+
+
 
 class User(object):
     def __init__(self, userID, username, displayName, admin, passwordHash, approvalRequired, points):
@@ -165,6 +200,13 @@ class User(object):
         cur.execute("SELECT userID FROM users WHERE username=%s", u)
         userID = cur.fetchall()[0]
         return userID[0]
+    
+    def get_username_from_userID(userID):
+        u = (userID,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT username FROM users WHERE userID=%s", u)
+        username = cur.fetchall()[0]
+        return username[0]
 
     def get_user_current_tasks(userID):
         u = (userID,)
@@ -205,6 +247,28 @@ class User(object):
         columns = [col[0] for col in cur.description]
         rewards = [dict(zip(columns, row)) for row in cur.fetchall()]
         return rewards
+    
+    def get_user_redeemed_rewards(userID):
+        u = (userID,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM rewards WHERE (assignedUserID=%s AND approved=2)", u)
+        columns = [col[0] for col in cur.description]
+        rewards = [dict(zip(columns, row)) for row in cur.fetchall()]
+        return rewards
+    
+    def subtract_points(userID, points):
+
+        print(points)
+        u = str(userID)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT points FROM users WHERE userID=%s", u)
+        currentPoints = (cur.fetchall()[0])[0]
+        print(currentPoints)
+        newPoints = currentPoints - int(points)
+
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE users SET points=%s WHERE userID=%s" % (newPoints, userID))
+        mysql.connection.commit()
 
 @app.route("/")
 def index():
@@ -273,6 +337,15 @@ def approveReward(rewardID):
     print(r)
     cur.execute("UPDATE rewards SET approved=2 WHERE rewardID=%s", r)
     mysql.connection.commit()
+
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT assignedUserID, points FROM rewards WHERE rewardID=%s", r)
+    userAndPoints = cur.fetchall()[0]
+    assignedUserID = userAndPoints[0]
+    points = userAndPoints[1]
+
+    User.subtract_points(assignedUserID, points)
+
     return redirect(url_for('admin'))
 
 @app.route('/admin/taskApproval/<taskID>', methods=['GET', 'POST'])   
@@ -280,7 +353,9 @@ def approveTask(taskID):
     cur = mysql.connection.cursor()
     t = taskID
     print(t)
-    cur.execute("UPDATE tasks SET approved=2 WHERE taskID=%s", t)
+    currentdate = datetime.now()
+    formmatedDate = currentDate(strftime('%Y-%m-%d'))
+    cur.execute("UPDATE tasks SET approved=2, dateComplete=%s WHERE taskID=%s" % (formattedDate, t))
     mysql.connection.commit()
     return redirect(url_for('admin'))
 
@@ -295,11 +370,35 @@ def submitTask(taskID):
 
 @app.route('/user/redeem/<rewardID>', methods=['GET', 'POST'])
 def redeem(rewardID):
-    cur = mysql.connection.cursor()
     r = rewardID
-    cur.execute("UPDATE rewards SET approved=1 WHERE rewardID=%s", r)
-    mysql.connection.commit()
-    return redirect(url_for('user'))
+    print(r)
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT assignedUserID FROM rewards WHERE rewardID=%s", [r])
+    user = str((cur.fetchall()[0])[0])
+
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT points FROM users WHERE userID=%s", user)
+    userPoints = int((cur.fetchall()[0])[0])
+    print(userPoints)
+
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT points FROM rewards WHERE rewardID=%s", [r])
+    rewardPoints = int((cur.fetchall()[0])[0])
+    print(rewardPoints)
+
+    if userPoints < rewardPoints:
+        flash("You don't have enough points!")
+        return redirect(url_for('notenough'))
+    else:
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE rewards SET approved=1 WHERE rewardID=%s", r)
+        mysql.connection.commit()
+        Reward.create_next_reward(rewardID)
+        return redirect(url_for('user'))
+
+@app.route('/notenough', methods=['GET', 'POST'])
+def notenough():
+    return render_template('notenough.html')
 
 @app.route('/user', methods=['GET', 'POST'])
 def user():
@@ -313,14 +412,16 @@ def user():
     userCompletedTasks = User.get_user_completed_tasks(userID)
     userAvailableRewards = User.get_user_rewards(userID)
     userPendingRewards = User.get_user_pending_rewards(userID)
+    userRedeemedRewards = User.get_user_redeemed_rewards(userID)
 
     userTaskTable = UserTaskTable(userTasks)
     userPendingTaskTable = UserPendingTaskTable(userPendingTasks)
     userCompletedTaskTable = UserCompletedTaskTable(userCompletedTasks)
     userAvailableRewardsTable = UserAvailableRewardsTable(userAvailableRewards)
     userPendingRewardsTable = UserPendingRewardsTable(userPendingRewards)
+    userRedeemedRewardsTable = UserRedeemedRewardsTable(userRedeemedRewards)
 
-    return render_template('user.html', username=username, points=points, userTaskTable=userTaskTable, userPendingTaskTable=userPendingTaskTable, userCompletedTaskTable=userCompletedTaskTable, userAvailableRewardsTable=userAvailableRewardsTable, userPendingRewardsTable=userPendingRewardsTable)
+    return render_template('user.html', username=username, points=points, userTaskTable=userTaskTable, userPendingTaskTable=userPendingTaskTable, userCompletedTaskTable=userCompletedTaskTable, userAvailableRewardsTable=userAvailableRewardsTable, userPendingRewardsTable=userPendingRewardsTable, userRedeemedRewardsTable=userRedeemedRewardsTable)
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8080, debug=True)

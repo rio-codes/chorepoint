@@ -1,8 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
 from flask_mysqldb import MySQL
 from flask_table import Table, Col, LinkCol, ButtonCol
 
 app = Flask(__name__)
+
+app.secret_key = 'S>&[8-$F?\:wtbX/'
 
 app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'
@@ -18,9 +20,14 @@ class TaskTable(Table):
     frequency = Col('Frequency')
 
 class RewardTable(Table):
-    rewardID=Col('Reward ID')
     rewardName = Col('Reward Name')
     points = Col('Points')    
+
+class UserTable(Table):
+    username = Col('Username')
+    points = Col('Points') 
+    admin = Col('Admin?')
+    approvalRequired = Col('Approval Required?')
 
 class PendingRewardTable(Table):
     rewardName = Col('Reward Name')
@@ -96,6 +103,34 @@ class Reward(object):
         rewards = [dict(zip(columns, row)) for row in cur.fetchall()]
         return rewards
 
+class User(object):
+    def __init__(self, userID, username, displayName, admin, passwordHash, approvalRequired, points):
+        self.userID = userID
+        self.username = username
+        self.displayName = displayName
+        self.admin = admin
+        self.passwordHash = passwordHash
+        self.approvalRequired = approvalRequired
+        self.points = points
+
+    @classmethod
+
+    def get_users(cls):
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM users")
+        columns = [col[0] for col in cur.description]
+        users = [dict(zip(columns, row)) for row in cur.fetchall()]
+        return users
+    
+    def get_current_user(username):
+        u = (username,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM users WHERE username=%s", u)
+        columns = [col[0] for col in cur.description]
+        user = [dict(zip(columns, row)) for row in cur.fetchall()]
+        return user
+
+
 @app.route("/")
 def index():
     return render_template('index.html')
@@ -124,6 +159,9 @@ def login():
                 print(user[1])
                 print(error)
             else:
+                session['username'] = user[1]
+                print('Logged in user:')
+                print(session['username'])
                 if user[3] == 1:
                     return redirect(url_for('admin'))
                 else:
@@ -135,21 +173,26 @@ def login():
 @app.route('/admin')
 
 def admin():
+    username = session['username']
+
     tasks = Task.get_tasks()
+    rewards = Reward.get_rewards()
+    users = User.get_users()
+
     pendingTasks = Task.get_tasks_pending_approval()
     pendingRewards = Reward.get_rewards_pending_approval()
-    #print(tasks)
-    #print(pendingTasks)
-    print(pendingRewards)
+
     taskTable = TaskTable(tasks)
+    rewardTable = RewardTable(rewards)
+    userTable = UserTable(users)
+
     pendingTaskTable = PendingTaskTable(pendingTasks)
     pendingRewardTable = PendingRewardTable(pendingRewards)
-    return render_template('admin.html', activeTaskTable=taskTable, pendingTaskTable=pendingTaskTable, pendingRewardTable=pendingRewardTable)
-    # , pendingTaskTable, pendingRewardTable, activeTaskTable, activeRewardTable, userTable
+
+    return render_template('admin.html', activeTaskTable=taskTable, pendingTaskTable=pendingTaskTable, pendingRewardTable=pendingRewardTable, activeRewardTable=rewardTable, userTable=userTable, username=username)
 
 @app.route('/admin/rewardApproval/<rewardID>', methods=['GET', 'POST'])   
 def approveReward(rewardID):
-    # if request.method == "POST":
     cur = mysql.connection.cursor()
     r = rewardID
     print(r)
@@ -159,7 +202,6 @@ def approveReward(rewardID):
 
 @app.route('/admin/taskApproval/<taskID>', methods=['GET', 'POST'])   
 def approveTask(taskID):
-    # if request.method == "POST":
     cur = mysql.connection.cursor()
     t = taskID
     print(t)
@@ -167,9 +209,13 @@ def approveTask(taskID):
     mysql.connection.commit()
     return redirect(url_for('admin'))
 
-#@app.route('/user', methods=['GET', 'POST'])
-#def user():
-    #return render_template('user.html', currentPoints, activeTaskTable, pendingTaskTable, completedTaskTable, rewardTable)
+@app.route('/user', methods=['GET', 'POST'])
+def user():
+    username = session['username']
+    fullUser = User.get_current_user(username)
+
+    return render_template('user.html', username=username)
+    # currentPoints, activeTaskTable, pendingTaskTable, completedTaskTable, rewardTable)
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8080, debug=True)

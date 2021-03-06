@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_mysqldb import MySQL
 from flask_table import Table, Col, LinkCol, ButtonCol
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
@@ -112,6 +112,25 @@ class Task(object):
         columns = [col[0] for col in cur.description]
         tasks = [dict(zip(columns, row)) for row in cur.fetchall()]
         return tasks
+    
+    def create_next_task(taskID, frequency):
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT taskID FROM tasks ORDER BY taskID DESC LIMIT 1")
+        lastTaskID = cur.fetchall()[0]
+        newTaskID = int((lastTaskID[0])) + 1
+        approved = 0
+
+        currentDate = datetime.now()
+        formattedDate = str(currentDate.strftime('%Y-%m-%d'))
+        dateString = "%Y-%m-%d"   
+
+        dueDate = currentDate + timedelta(int( ( ( frequency[0]) [0] ) ))
+        formattedDueDate = str(dueDate.strftime('%Y-%m-%d'))
+
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO tasks (taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, frequency, dueDate) SELECT %s, taskName, points, %s, assignedUserID, createdByUserID, STR_TO_DATE('%s','%s'), frequency, STR_TO_DATE('%s','%s') FROM tasks WHERE taskID=%s" % (newTaskID, approved, formattedDate, dateString, formattedDueDate, dateString, taskID))
+        mysql.connection.commit()
+
 
 class Reward(object):
     def __init__(self, rewardID, rewardName, points, redeemed, active, approved, redeemedBy, createdBy):
@@ -153,7 +172,6 @@ class Reward(object):
         n = newRewardID
         print(n)
         a = 0
-
         cur = mysql.connection.cursor()
         cur.execute("INSERT INTO rewards (rewardID, rewardName, points, approved, assignedUserID) SELECT %s, rewardName, points, %s, assignedUserID FROM rewards WHERE rewardID=%s" % (n, a, r))
         mysql.connection.commit()
@@ -211,7 +229,10 @@ class User(object):
     def get_user_current_tasks(userID):
         u = (userID,)
         cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM tasks WHERE (assignedUserID=%s AND approved=0)", u)
+        currentDate = datetime.now()
+        formattedDate = str(currentDate.strftime('%Y-%m-%d'))
+        dateString = "%Y-%m-%d"
+        cur.execute("SELECT * FROM tasks WHERE assignedUserID='%s' AND approved=0 AND dueDate=STR_TO_DATE('%s','%s')" % (u, formattedDate, dateString))
         columns = [col[0] for col in cur.description]
         tasks = [dict(zip(columns, row)) for row in cur.fetchall()]
         return tasks
@@ -225,9 +246,12 @@ class User(object):
         return tasks
 
     def get_user_completed_tasks(userID):
-        u = (userID,)
+        u = userID
         cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM tasks WHERE (assignedUserID=%s AND approved=2)", u)
+        currentDate = datetime.now()
+        formattedDate = str(currentDate.strftime('%Y-%m-%d'))
+        dateString = "%Y-%m-%d"
+        cur.execute("SELECT * FROM tasks WHERE assignedUserID='%s' AND approved=2 AND dateCompleted=STR_TO_DATE('%s', '%s')" % (u, formattedDate, dateString))
         columns = [col[0] for col in cur.description]
         tasks = [dict(zip(columns, row)) for row in cur.fetchall()]
         return tasks
@@ -265,6 +289,20 @@ class User(object):
         currentPoints = (cur.fetchall()[0])[0]
         print(currentPoints)
         newPoints = currentPoints - int(points)
+
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE users SET points=%s WHERE userID=%s" % (newPoints, userID))
+        mysql.connection.commit()
+    
+    def add_points(userID, points):
+
+        print(points)
+        u = str(userID)
+
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT points FROM users WHERE userID=%s", u)
+        currentPoints = (cur.fetchall()[0])[0]
+        newPoints = currentPoints + int(points)
 
         cur = mysql.connection.cursor()
         cur.execute("UPDATE users SET points=%s WHERE userID=%s" % (newPoints, userID))
@@ -352,11 +390,30 @@ def approveReward(rewardID):
 def approveTask(taskID):
     cur = mysql.connection.cursor()
     t = taskID
+    i = (taskID,)
     print(t)
-    currentdate = datetime.now()
-    formmatedDate = currentDate(strftime('%Y-%m-%d'))
-    cur.execute("UPDATE tasks SET approved=2, dateComplete=%s WHERE taskID=%s" % (formattedDate, t))
+    currentDate = datetime.now()
+    print(currentDate)
+    formattedDate = str(currentDate.strftime('%Y-%m-%d'))
+    print(formattedDate)
+    dateString = "%Y-%m-%d"
+    print(taskID)
+    cur.execute("UPDATE tasks SET approved=2, dateCompleted=STR_TO_DATE('%s', '%s') WHERE taskID=%s" % (formattedDate, dateString, t))
     mysql.connection.commit()
+
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT frequency FROM tasks WHERE taskID=%s", i)
+    
+    frequency = cur.fetchall()[0]
+    Task.create_next_task(taskID, frequency)
+    
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT assignedUserID, points FROM tasks WHERE taskID=%s", i)
+    userAndPoints = cur.fetchall()[0]
+    userID = userAndPoints[0]
+    points = userAndPoints[1]
+    User.add_points(userID, points)
+
     return redirect(url_for('admin'))
 
 @app.route('/user/submitTask/<taskID>', methods=['GET', 'POST'])

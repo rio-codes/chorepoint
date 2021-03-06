@@ -7,9 +7,42 @@
   <body>
     <div class="container">
       <h1>chorepoint user dashboard</h1>
-      <h2>hello, {{ username }}</h2>
+      <h2>hello, {{ username }}. You have {{ points }} points.</h2>
       <br>
-      
+      <h2>your tasks</h2>
+      <div class="row">
+        <div class="col-sm">
+      <h3>to do:</32>
+      {{ userTaskTable }}
+      <br>
+      </div>
+      <div class="col-sm">
+        <h3>pending:</h3>
+        {{ userPendingTaskTable }}
+        <br>
+        </div>
+        <div class="col-sm">
+          <h3>complete:</h3>
+          {{ userCompletedTaskTable }}
+          <br>
+          </div>
+    </div>
+    <h2>your rewards</h2>
+    <div class="row">
+      <div class="col-sm">
+        <h3>available:</h3>
+      {{ userAvailableRewardsTable }}
+      </div>
+      <div class="col-sm">
+        <h3>pending:</h3>
+      {{ userPendingRewardsTable }}
+      </div>
+
+      <div class="col-sm">
+        <h3>redeemed:</h3>
+      {{ userRedeemedRewardsTable }}
+      </div>
+    </div>
     </div>
   </body>
 </html>

@@ -41,6 +41,28 @@ class PendingTaskTable(Table):
     frequency = Col('Frequency')
     approved = ButtonCol('Approve', 'approveTask', url_kwargs=dict(taskID='taskID'))
 
+class UserTaskTable(Table):
+    taskName = Col('Task Name')
+    points = Col('Points')
+    submit = ButtonCol('Submit', 'submitTask', url_kwargs=dict(taskID='taskID'))
+
+class UserPendingTaskTable(Table):
+    taskName = Col('Task Name')
+    points = Col('Points')
+
+class UserCompletedTaskTable(Table):
+    taskName = Col('Task Name')
+    points = Col('Points')
+
+class UserAvailableRewardsTable(Table):
+    rewardName = Col('Reward Name')
+    points = Col('Points')
+    redeem = ButtonCol('Redeem', 'redeem', url_kwargs=dict(rewardID='rewardID'))
+
+class UserPendingRewardsTable(Table):
+    rewardName = Col('Reward Name')
+    points = Col('Points')
+
 class Task(object):
     def __init__(self, taskID, taskName, points, active, complete, approved, assignedUserID, createdByUserID, dateCreated, dateCompleted, frequency):
         self.taskID = taskID
@@ -129,7 +151,60 @@ class User(object):
         columns = [col[0] for col in cur.description]
         user = [dict(zip(columns, row)) for row in cur.fetchall()]
         return user
+    
+    def get_points(username):
+        u = (username,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT points FROM users WHERE username=%s", u)
+        points = cur.fetchall()[0]
+        return points[0]
 
+    def get_userID_from_username(username):
+        u = (username,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT userID FROM users WHERE username=%s", u)
+        userID = cur.fetchall()[0]
+        return userID[0]
+
+    def get_user_current_tasks(userID):
+        u = (userID,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM tasks WHERE (assignedUserID=%s AND approved=0)", u)
+        columns = [col[0] for col in cur.description]
+        tasks = [dict(zip(columns, row)) for row in cur.fetchall()]
+        return tasks
+
+    def get_user_pending_tasks(userID):
+        u = (userID,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM tasks WHERE (assignedUserID=%s AND approved=1)", u)
+        columns = [col[0] for col in cur.description]
+        tasks = [dict(zip(columns, row)) for row in cur.fetchall()]
+        return tasks
+
+    def get_user_completed_tasks(userID):
+        u = (userID,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM tasks WHERE (assignedUserID=%s AND approved=2)", u)
+        columns = [col[0] for col in cur.description]
+        tasks = [dict(zip(columns, row)) for row in cur.fetchall()]
+        return tasks
+    
+    def get_user_rewards(userID):
+        u = (userID,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM rewards WHERE (assignedUserID=%s AND approved=0)", u)
+        columns = [col[0] for col in cur.description]
+        rewards = [dict(zip(columns, row)) for row in cur.fetchall()]
+        return rewards
+
+    def get_user_pending_rewards(userID):
+        u = (userID,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM rewards WHERE (assignedUserID=%s AND approved=1)", u)
+        columns = [col[0] for col in cur.description]
+        rewards = [dict(zip(columns, row)) for row in cur.fetchall()]
+        return rewards
 
 @app.route("/")
 def index():
@@ -209,13 +284,43 @@ def approveTask(taskID):
     mysql.connection.commit()
     return redirect(url_for('admin'))
 
+@app.route('/user/submitTask/<taskID>', methods=['GET', 'POST'])
+def submitTask(taskID):
+    cur = mysql.connection.cursor()
+    t = taskID
+    print(t)
+    cur.execute("UPDATE tasks SET approved=1 WHERE taskID=%s", t)
+    mysql.connection.commit()
+    return redirect(url_for('user'))
+
+@app.route('/user/redeem/<rewardID>', methods=['GET', 'POST'])
+def redeem(rewardID):
+    cur = mysql.connection.cursor()
+    r = rewardID
+    cur.execute("UPDATE rewards SET approved=1 WHERE rewardID=%s", r)
+    mysql.connection.commit()
+    return redirect(url_for('user'))
+
 @app.route('/user', methods=['GET', 'POST'])
 def user():
     username = session['username']
     fullUser = User.get_current_user(username)
+    points = User.get_points(username)
+    userID = User.get_userID_from_username(username)
 
-    return render_template('user.html', username=username)
-    # currentPoints, activeTaskTable, pendingTaskTable, completedTaskTable, rewardTable)
+    userTasks = User.get_user_current_tasks(userID)
+    userPendingTasks = User.get_user_pending_tasks(userID)
+    userCompletedTasks = User.get_user_completed_tasks(userID)
+    userAvailableRewards = User.get_user_rewards(userID)
+    userPendingRewards = User.get_user_pending_rewards(userID)
+
+    userTaskTable = UserTaskTable(userTasks)
+    userPendingTaskTable = UserPendingTaskTable(userPendingTasks)
+    userCompletedTaskTable = UserCompletedTaskTable(userCompletedTasks)
+    userAvailableRewardsTable = UserAvailableRewardsTable(userAvailableRewards)
+    userPendingRewardsTable = UserPendingRewardsTable(userPendingRewards)
+
+    return render_template('user.html', username=username, points=points, userTaskTable=userTaskTable, userPendingTaskTable=userPendingTaskTable, userCompletedTaskTable=userCompletedTaskTable, userAvailableRewardsTable=userAvailableRewardsTable, userPendingRewardsTable=userPendingRewardsTable)
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8080, debug=True)

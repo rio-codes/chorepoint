@@ -131,6 +131,7 @@ class Task(object):
         cur.execute("INSERT INTO tasks (taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, frequency, dueDate) SELECT %s, taskName, points, %s, assignedUserID, createdByUserID, STR_TO_DATE('%s','%s'), frequency, STR_TO_DATE('%s','%s') FROM tasks WHERE taskID=%s" % (newTaskID, approved, formattedDate, dateString, formattedDueDate, dateString, taskID))
         mysql.connection.commit()
 
+   # def create_new_task
 
 class Reward(object):
     def __init__(self, rewardID, rewardName, points, redeemed, active, approved, redeemedBy, createdBy):
@@ -371,18 +372,10 @@ def admin():
 @app.route('/admin/rewardApproval/<rewardID>', methods=['GET', 'POST'])   
 def approveReward(rewardID):
     cur = mysql.connection.cursor()
-    r = rewardID
+    r = (rewardID,)
     print(r)
     cur.execute("UPDATE rewards SET approved=2 WHERE rewardID=%s", r)
     mysql.connection.commit()
-
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT assignedUserID, points FROM rewards WHERE rewardID=%s", r)
-    userAndPoints = cur.fetchall()[0]
-    assignedUserID = userAndPoints[0]
-    points = userAndPoints[1]
-
-    User.subtract_points(assignedUserID, points)
 
     return redirect(url_for('admin'))
 
@@ -419,7 +412,7 @@ def approveTask(taskID):
 @app.route('/user/submitTask/<taskID>', methods=['GET', 'POST'])
 def submitTask(taskID):
     cur = mysql.connection.cursor()
-    t = taskID
+    t = (taskID,)
     print(t)
     cur.execute("UPDATE tasks SET approved=1 WHERE taskID=%s", t)
     mysql.connection.commit()
@@ -427,10 +420,10 @@ def submitTask(taskID):
 
 @app.route('/user/redeem/<rewardID>', methods=['GET', 'POST'])
 def redeem(rewardID):
-    r = rewardID
+    r = (rewardID,)
     print(r)
     cur = mysql.connection.cursor()
-    cur.execute("SELECT assignedUserID FROM rewards WHERE rewardID=%s", [r])
+    cur.execute("SELECT assignedUserID FROM rewards WHERE rewardID=%s", r)
     user = str((cur.fetchall()[0])[0])
 
     cur = mysql.connection.cursor()
@@ -450,12 +443,33 @@ def redeem(rewardID):
         cur = mysql.connection.cursor()
         cur.execute("UPDATE rewards SET approved=1 WHERE rewardID=%s", r)
         mysql.connection.commit()
+        User.subtract_points(user, rewardPoints)
         Reward.create_next_reward(rewardID)
         return redirect(url_for('user'))
+
+    
 
 @app.route('/notenough', methods=['GET', 'POST'])
 def notenough():
     return render_template('notenough.html')
+
+@app.route('/newtask', methods=['GET', 'POST'])
+def newtask():
+    if request.method == "POST":
+        taskName = request.form['taskName']
+        points = request.form['points']
+        frequency = request.form['frequency']
+        if (points.isdigit() and frequency.isdigit()):
+            error = None
+        else:
+            if not points.isdigit() and not frequency.isdigit():
+                error = 'Please enter numbers for points and frequency'
+            elif not frequency.isdigit() and points.isdigit():
+                error = 'Please enter a number for frequency.'
+            else:
+                error = 'Please enter a number for points'
+
+    return render_template('newtask.html', error=error)    
 
 @app.route('/user', methods=['GET', 'POST'])
 def user():

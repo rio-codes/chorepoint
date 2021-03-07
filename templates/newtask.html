@@ -1,0 +1,28 @@
+<html>
+  <head>
+    <title>new task</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="static/bootstrap.min.css" rel="stylesheet" media="screen">
+  </head>
+  <body>
+    <div class="container">
+      <h1>new task</h1>
+      <br>
+      <form action="" method="post">
+        <label for="taskName">task name:</label>
+        <input type="text" placeholder="task name" name="taskName" value="{{
+          request.form.taskName }}">
+        <label for="points">points:</label>  
+        <input type="text" placeholder="points" name="points" value="{{
+            request.form.points }}">
+        <label for="frequency">frequency in days:</label>
+        <input type="frequency" placeholder="frequency in days" name="frequency" value="{{
+                request.form.frequency }}">
+        <input class="btn btn-default" type="submit" value="Create">
+      </form>
+      {% if error %}
+        <p class="error">{{ error }}
+      {% endif %}
+    </div>
+  </body>
+</html>

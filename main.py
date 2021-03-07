@@ -19,7 +19,6 @@ class Task(object):
         self.taskID = taskID
         self.taskName = taskName
         self.points = points
-        self.active = active
         self.complete = complete
         self.approved = approved
         self.assignedUserID = assignedUserID
@@ -27,8 +26,35 @@ class Task(object):
         self.dateCreated = dateCreated
         self.dateCompleted = dateCompleted
         self.frequency = frequency
+        self.homeID = homeID
 
+    @classmethod
 
+    def get_task(self, taskID):
+        t = (taskID,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM tasks WHERE taskID=%s", t)
+        columns = [col[0] for col in cur.description]
+        task = [dict(zip(columns, row)) for row in cur.fetchall()]
+        self.taskID = taskID 
+        self.taskName = task[0]['taskName']
+        self.points = task[0]['points']
+        self.aproved = task[0]['approved']
+        self.assignedUserID = task[0]['assignedUserID']
+        self.createdByUserID = task[0]['createdByUserID']
+        self.dateCreated = task[0]['dateCreated']
+        self.dateCompleted = task[0]['dateCompleted']
+        self.frequency = task[0]['frequency']
+        self.dueDate = task[0]['dueDate']
+        self.homeID = task[0]['homeID']
+        return self
+
+    def get_home_tasks(homeID):
+        h = (homeID,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT taskID FROM tasks WHERE homeID=%s", h)
+        tasks = cur.fetchall()
+        return tasks
 
 class Reward(object):
     def __init__(self, rewardID, rewardName, points, redeemed, active, approved, redeemedBy, createdBy):
@@ -127,10 +153,23 @@ def login():
 def admin():
     username = session['username']
     adminUser = User.get_user(username)
-    print(adminUser.userID)
+    # print(adminUser.userID)
     home = Home.get_home(adminUser.userID)
-    # tasks = Task.get_tasks(home.homeID)
-    return render_template('admin.html')
+    print(home.homeID)
+    homeTasks = []
+    homeTasksTuple = Task.get_home_tasks(home.homeID)
+    for x in range(len(homeTasksTuple)):
+        homeTasks.append((homeTasksTuple[x])[0])
+    
+    allTasks = []
+    for y in homeTasks:
+        allTasks.append(Task.get_task(y))
+    
+    test = Task.get_task(5)
+    print(test.taskName)
+    #allTaskTable = AllTaskTable(allTasks)
+
+    return render_template('admin.html',displayName=adminUser.displayName)
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8080, debug=True)

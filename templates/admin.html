@@ -7,15 +7,16 @@
   <body>
     <div class="container">
       <h1>chorepoint admin dashboard</h1>
-      <h2> hello, {{ username }}</h2>
+      <h2> hello, {{ displayName }}</h2>
       <br>
       <div class="row">
         <div class="col-sm">
       <h2>tasks pending approval</h2>
       {{ pendingTaskTable }}
       <br>
+      
       <h2>all tasks</h2>
-      {{ activeTaskTable }}
+
       <br>
       <a href="newtask">new task</a>
       </div>

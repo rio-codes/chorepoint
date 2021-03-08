@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_mysqldb import MySQL
 from flask_table import Table, Col, LinkCol, ButtonCol
 from datetime import datetime, timedelta
+import copy
 
 app = Flask(__name__)
 
@@ -155,19 +156,26 @@ def admin():
     adminUser = User.get_user(username)
     # print(adminUser.userID)
     home = Home.get_home(adminUser.userID)
-    print(home.homeID)
+    # print(home.homeID)
     homeTasks = []
     homeTasksTuple = Task.get_home_tasks(home.homeID)
     for x in range(len(homeTasksTuple)):
-        homeTasks.append((homeTasksTuple[x])[0])
+        homeTasks.append(int(((homeTasksTuple[x])[0])))
+        print(homeTasks[x])
     
-    allTasks = []
-    for y in homeTasks:
-        allTasks.append(Task.get_task(y))
-    
-    test = Task.get_task(5)
-    print(test.taskName)
-    #allTaskTable = AllTaskTable(allTasks)
+    allTasks=[]
+
+    for y in range(len(homeTasks)):
+        thisTask = Task.get_task(homeTasks[y]) 
+        allTasks.append(copy.deepcopy(thisTask))
+        print(allTasks[y].taskName)
+
+    #print(allTasks[10].taskName)
+
+    for z in range(len(allTasks)):
+        print(z)
+        print(allTasks[z].taskName)
+
 
     return render_template('admin.html',displayName=adminUser.displayName)
 

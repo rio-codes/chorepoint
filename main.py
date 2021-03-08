@@ -16,39 +16,29 @@ app.config['MYSQL_UNIX_SOCKET'] = '/home/rio/mysql/mysqld.sock'
 mysql = MySQL(app)
 
 class Task(object):
-    def __init__(self, taskID, taskName, points, active, complete, approved, assignedUserID, createdByUserID, dateCreated, dateCompleted, frequency):
+    def __init__(self, taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, dateCompleted, frequency, dueDate, homeID, assignedUsername):
         self.taskID = taskID
         self.taskName = taskName
         self.points = points
-        self.complete = complete
         self.approved = approved
         self.assignedUserID = assignedUserID
         self.createdByUserID = createdByUserID
         self.dateCreated = dateCreated
         self.dateCompleted = dateCompleted
         self.frequency = frequency
+        self.dueDate = dueDate
         self.homeID = homeID
+        self.assignedUsername = assignedUsername
 
-    @classmethod
-
-    def get_task(self, taskID):
+    def get_task(taskID):
         t = (taskID,)
         cur = mysql.connection.cursor()
         cur.execute("SELECT * FROM tasks WHERE taskID=%s", t)
         columns = [col[0] for col in cur.description]
         task = [dict(zip(columns, row)) for row in cur.fetchall()]
-        self.taskID = taskID 
-        self.taskName = task[0]['taskName']
-        self.points = task[0]['points']
-        self.aproved = task[0]['approved']
-        self.assignedUserID = task[0]['assignedUserID']
-        self.createdByUserID = task[0]['createdByUserID']
-        self.dateCreated = task[0]['dateCreated']
-        self.dateCompleted = task[0]['dateCompleted']
-        self.frequency = task[0]['frequency']
-        self.dueDate = task[0]['dueDate']
-        self.homeID = task[0]['homeID']
-        return self
+        assignedUser = User.get_user(task[0]['assignedUserID'])
+        assignedUsername = assignedUser.username
+        return Task(taskID, task[0]['taskName'], task[0]['points'],  task[0]['approved'], task[0]['assignedUserID'], task[0]['createdByUserID'], task[0]['dateCreated'], task[0]['dateCompleted'], task[0]['frequency'], task[0]['dueDate'], task[0]['homeID'], assignedUsername)
 
     def get_home_tasks(homeID):
         h = (homeID,)
@@ -58,16 +48,28 @@ class Task(object):
         return tasks
 
 class Reward(object):
-    def __init__(self, rewardID, rewardName, points, redeemed, active, approved, redeemedBy, createdBy):
+    def __init__(self, rewardID, rewardName, points, approved, assignedUserID, homeID):
         self.rewardID = rewardID
         self.rewardName = rewardName
         self.points = points
-        self.redeemed = redeemed
-        self.active = active
         self.approved = approved
-        self.redeemedBy = redeemedBy
-        self.createdByUserID = createdByUserID
-        self.createdBy = createdBy
+        self.assignedUserID = assignedUserID
+        self.homeID = homeID
+
+    def get_reward(rewardID):
+        r = (rewardID,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM rewards WHERE rewardID=%s", r)
+        columns = [col[0] for col in cur.description]
+        reward = [dict(zip(columns, row)) for row in cur.fetchall()]
+        return Reward(rewardID, reward[0]['rewardName'], reward[0]['points'], reward[0]['approved'], reward[0]['assignedUserID'], reward[0]['homeID'])
+    
+    def get_home_rewards(homeID):
+        h = (homeID,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT rewardID FROM rewards WHERE homeID=%s", h)
+        rewards = cur.fetchall()
+        return rewards
 
 class User(object):
     def __init__(self, userID, username, displayName, admin, passwordHash, approvalRequired, points):
@@ -81,24 +83,31 @@ class User(object):
 
     @classmethod
 
-    def get_user(self, username):
-        u = (username,)
+    def get_user(self, userID):
+        u = (userID,)
         cur = mysql.connection.cursor()
-        cur.execute("SELECT * FROM users WHERE username=%s", u)
+        cur.execute("SELECT * FROM users WHERE userID=%s", u)
         columns = [col[0] for col in cur.description]
         user = [dict(zip(columns, row)) for row in cur.fetchall()]
-        print(user)
         if user == []:
             return None
-        else :    
-            self.userID = user[0]['userID']
-            self.username = username
-            self.displayName = user[0]['displayName']
-            self.admin = user[0]['admin']
-            self.passwordHash = user[0]['passwordHash']
-            self.approvalRequired = user[0]['approvalRequired']
-            self.points = user[0]['points']
-            return self
+        else :
+            return User(user[0]['userID'],username,user[0]['displayName'],user[0]['admin'],user[0]['passwordHash'],user[0]['approvalRequired'],user[0]['points'])
+
+    def get_userID_from_username(username):
+        u = (username,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT userID FROM users WHERE username=%s", u)
+        userTuple = cur.fetchall()
+        user = int(((userTuple[0])[0]))
+        return user
+        
+    def get_home_users(homeID):
+        h = (homeID,)
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT username FROM users WHERE homeID=%s", h)
+        users = cur.fetchall()
+        return users
 
 class Home(object):
     def __init__(self, homeID, homeName, adminUserID):
@@ -129,8 +138,9 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
-        user = User.get_user(username)
-        # print(user.userID)
+        userID = User.get_userID_from_username(username)
+        user = User.get_user(userID)
+
         error = None
 
         if user == None:
@@ -140,9 +150,9 @@ def login():
             if user.passwordHash != password:    
                 error = 'Incorrect password.'
             else:
-                session['username'] = user.username
+                session['userID'] = user.userID
                 print('Logged in user:')
-                print(session['username'])
+                print(user.username)
                 if user.admin == 1:
                     return redirect(url_for('admin'))
                 else:
@@ -152,32 +162,61 @@ def login():
 @app.route('/admin')
 
 def admin():
+    # get current logged in user
     username = session['username']
     adminUser = User.get_user(username)
-    # print(adminUser.userID)
+
+    # get current home
     home = Home.get_home(adminUser.userID)
-    # print(home.homeID)
+
+    # get tasks data for current home
     homeTasks = []
     homeTasksTuple = Task.get_home_tasks(home.homeID)
-    for x in range(len(homeTasksTuple)):
-        homeTasks.append(int(((homeTasksTuple[x])[0])))
-        print(homeTasks[x])
+    for a in range(len(homeTasksTuple)):
+        homeTasks.append(int(((homeTasksTuple[a])[0])))
     
+    # get active and pending tasks and add to output
     allTasks=[]
+    pendingTasks=[]
+    for b in range(len(homeTasks)):
+        thisTask = Task.get_task(homeTasks[b]) 
+        if thisTask.dateCompleted == None:
+            allTasks.append(thisTask)
+        elif thisTask.approved == 1:
+            pendingTasks.append(thisTask)
+    
 
-    for y in range(len(homeTasks)):
-        thisTask = Task.get_task(homeTasks[y]) 
-        allTasks.append(copy.deepcopy(thisTask))
-        print(allTasks[y].taskName)
+    # get rewards data for current home
+    homeRewards=[]
+    homeRewardsTuple = Reward.get_home_rewards(home.homeID)
+    for c in range(len(homeRewardsTuple)):
+        homeRewards.append(int(((homeRewardsTuple[c])[0])))
+    
+    # get active and pending rewards and add to output
+    allRewards=[]
+    pendingRewards=[]
+    for d in range(len(homeRewards)):
+        thisReward = Reward.get_reward(homeRewards[d])
+        if thisReward.approved == 0:
+            allRewards.append(thisReward)
+        elif thisReward.approved == 1:
+            pendingRewards.append(thisReward)
 
-    #print(allTasks[10].taskName)
+    # get users for current home
+    homeUsers=[]
+    homeUsersTuple = User.get_home_users(home.homeID)
+    
+    for f in range(len(homeUsersTuple)):
+        homeUsers.append(str(((homeUsersTuple[f])[0])))
+    
+    # add users to output
+    allUsers=[]
+    for g in range(len(homeUsers)):
+        thisUser = User.get_user(homeUsers[g])
+        allUsers.append(thisUser)
 
-    for z in range(len(allTasks)):
-        print(z)
-        print(allTasks[z].taskName)
-
-
-    return render_template('admin.html',displayName=adminUser.displayName)
+    # display admin page with output
+    return render_template('admin.html',displayName=adminUser.displayName,home=home.homeName,allTasks=allTasks,allRewards=allRewards,allUsers=allUsers,pendingTasks=pendingTasks,pendingRewards=pendingRewards)
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8080, debug=True)

@@ -7,25 +7,96 @@
   <body>
     <div class="container">
       <h1>chorepoint admin dashboard</h1>
-      <h2> hello, {{ displayName }}</h2>
+      <h2> hello, {{ displayName }}! welcome to {{ home }}.</h2>
       <br>
       <div class="row">
         <div class="col-sm">
       <h2>tasks pending approval</h2>
-      {{ pendingTaskTable }}
+
+      {% if pendingTasks == [] %}
+      no pending tasks
+      {% else %}
+        <table>
+          <tr>
+            <th>task name</th>
+            <th>points</th>
+            <th>user</th>
+            <th>frequency</hd>
+          </tr>
+
+          {% for task in pendingTasks %}
+          <tr>
+            <td>{{task.taskName}}</td>
+            <td>{{task.points}}</td>
+            <td>{{task.assignedUsername}}</td>
+            <td>{{task.frequency}}</td>
+          </tr>
+          {% endfor %}
+        </table>
+      {% endif %}
       <br>
       
       <h2>all tasks</h2>
+      {% if allTasks == [] %}
+      no tasks
+      {% else %}
+          <table>
+            <tr>
+              <th>task name</th>
+              <th>points</th>
+              <th>user</th>
+              <th>frequency</hd>
+            </tr>
 
+            {% for task in allTasks %}
+            <tr>
+              <td>{{task.taskName}}</td>
+              <td>{{task.points}}</td>
+              <td>{{task.assignedUsername}}</td>
+              <td>{{task.frequency}}</td>
+            </tr>
+            {% endfor %}
+          </table>
+        {% endif %}
       <br>
       <a href="newtask">new task</a>
       </div>
       <div class="col-sm">
         <h2>rewards pending approval</h2>
-        {{ pendingRewardTable }}
+        {% if pendingRewards == [] %}
+        no pending rewards
+        {% else %}
+          <table>
+            <tr>
+              <th>reward name</th>
+              <th>points</th>
+            </tr>
+            {% for reward in pendingRewards %}
+            <tr>
+              <td>{{reward.rewardName}}</td>
+              <td>{{reward.points}}</td>
+            </tr>
+            {% endfor %}
+          </table>
+        {% endif %}
         <br>
         <h2>all rewards</h2>
-        {{ activeRewardTable }}
+        {% if allRewards == [] %}
+        no rewards
+        {% else %}
+          <table>
+            <tr>
+              <th>reward name</th>
+              <th>points</th>
+            </tr>
+            {% for reward in allRewards %}
+            <tr>
+              <td>{{reward.rewardName}}</td>
+              <td>{{reward.points}}</td>
+            </tr>
+            {% endfor %}
+          </table>
+          {% endif %}
         <br>
         <a href="newreward">new reward</a>
         </div>
@@ -33,7 +104,22 @@
         </div>
         <br>
         <h2>all users</h2>
-        {{ userTable }}
+        <table>
+          <tr>
+            <th>username</th>
+            <th>points</th>
+            <th>is admin?</th>
+            <th>approval required?</hd>
+          </tr>
+          {% for user in allUsers %}
+          <tr>
+            <td>{{ user.username }}</td>
+            <td>{{ user.points }}</td>
+            <td>{{ user.admin }}</td>
+            <td>{{ user.approvalRequired }}</td>
+          </tr>
+          {% endfor %}
+        </table>
       <br>
     </div>
   </body>

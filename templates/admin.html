@@ -22,6 +22,7 @@
             <th>points</th>
             <th>user</th>
             <th>frequency</hd>
+            <th> </th> 
           </tr>
 
           {% for task in pendingTasks %}
@@ -30,6 +31,7 @@
             <td>{{task.points}}</td>
             <td>{{task.assignedUsername}}</td>
             <td>{{task.frequency}}</td>
+            <td><a href = "admin/approveTask/{{task.taskID}}">approve</a></td>
           </tr>
           {% endfor %}
         </table>
@@ -53,7 +55,11 @@
               <td>{{task.taskName}}</td>
               <td>{{task.points}}</td>
               <td>{{task.assignedUsername}}</td>
-              <td>{{task.frequency}}</td>
+              {% if task.frequency == '1' %}
+                <td>every day</td>
+              {% else %}
+                <td>every {{task.frequency}} days</td> 
+              {% endif %}
             </tr>
             {% endfor %}
           </table>
@@ -70,11 +76,13 @@
             <tr>
               <th>reward name</th>
               <th>points</th>
+              <th> </th>
             </tr>
             {% for reward in pendingRewards %}
             <tr>
               <td>{{reward.rewardName}}</td>
               <td>{{reward.points}}</td>
+              <td><a href="admin/approveReward/{{reward.rewardID}}">approve</a></td>
             </tr>
             {% endfor %}
           </table>

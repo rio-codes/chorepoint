@@ -23,6 +23,7 @@
             <th>user</th>
             <th>frequency</hd>
             <th> </th> 
+            <th> </th> 
           </tr>
 
           {% for task in pendingTasks %}
@@ -30,15 +31,20 @@
             <td>{{task.taskName}}</td>
             <td>{{task.points}}</td>
             <td>{{task.assignedUsername}}</td>
-            <td>{{task.frequency}}</td>
+            {% if task.frequency == '1' %}
+              <td>every day</td>
+            {% else %}
+              <td>every {{task.frequency}} days</td> 
+            {% endif %}
             <td><a href = "admin/approveTask/{{task.taskID}}">approve</a></td>
+            <td><a href = "admin/denyTask/{{task.taskID}}">deny</a></td>
           </tr>
           {% endfor %}
         </table>
       {% endif %}
       <br>
       
-      <h2>all tasks</h2>
+      <h2>all active tasks</h2>
       {% if allTasks == [] %}
       no tasks
       {% else %}
@@ -47,7 +53,9 @@
               <th>task name</th>
               <th>points</th>
               <th>user</th>
-              <th>frequency</hd>
+              <th>frequency</th>
+              <th> </th>
+
             </tr>
 
             {% for task in allTasks %}
@@ -60,6 +68,7 @@
               {% else %}
                 <td>every {{task.frequency}} days</td> 
               {% endif %}
+              <td><a href="admin/deleteTask/{{task.taskID}}">delete</a></td>
             </tr>
             {% endfor %}
           </table>
@@ -77,18 +86,20 @@
               <th>reward name</th>
               <th>points</th>
               <th> </th>
+              <th> </th>
             </tr>
             {% for reward in pendingRewards %}
             <tr>
               <td>{{reward.rewardName}}</td>
               <td>{{reward.points}}</td>
               <td><a href="admin/approveReward/{{reward.rewardID}}">approve</a></td>
+              <td><a href = "admin/denyReward/{{reward.rewardID}}">deny</a></td>
             </tr>
             {% endfor %}
           </table>
         {% endif %}
         <br>
-        <h2>all rewards</h2>
+        <h2>all active rewards</h2>
         {% if allRewards == [] %}
         no rewards
         {% else %}
@@ -96,13 +107,15 @@
             <tr>
               <th>reward name</th>
               <th>points</th>
+              <th> </th>
             </tr>
             {% for reward in allRewards %}
             <tr>
               <td>{{reward.rewardName}}</td>
               <td>{{reward.points}}</td>
-            </tr>
+              <td><a href="admin/deleteReward/{{reward.rewardID}}">delete</a></td>
             {% endfor %}
+          </tr>
           </table>
           {% endif %}
         <br>

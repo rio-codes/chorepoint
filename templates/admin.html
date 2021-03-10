@@ -43,7 +43,10 @@
         </table>
       {% endif %}
       <br>
-      
+      </div>
+      </div>
+      <div class = "row">
+        <div class= "col-sm">
       <h2>all active tasks</h2>
       {% if allTasks == [] %}
       no tasks
@@ -54,6 +57,7 @@
               <th>points</th>
               <th>user</th>
               <th>frequency</th>
+              <th>due date</th>
               <th> </th>
 
             </tr>
@@ -68,13 +72,14 @@
               {% else %}
                 <td>every {{task.frequency}} days</td> 
               {% endif %}
+              <td>{{task.dueDate}}</td>
               <td><a href="admin/deleteTask/{{task.taskID}}">delete</a></td>
             </tr>
             {% endfor %}
           </table>
         {% endif %}
       <br>
-      <a href="newtask">new task</a>
+      <a href="admin/newtask">new task</a>
       </div>
       <div class="col-sm">
         <h2>rewards pending approval</h2>

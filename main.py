@@ -69,7 +69,6 @@ class Task(object):
         cur.execute("SELECT taskID FROM tasks ORDER BY taskID DESC LIMIT 1")
         lastTaskID = cur.fetchall()[0]
         newTaskID = int((lastTaskID[0])) + 1
-        approved = 0
 
         # set and format current date
         currentDate = datetime.now()
@@ -84,9 +83,33 @@ class Task(object):
         cur = mysql.connection.cursor()
 
         # add new task to database
-        cur.execute("INSERT INTO tasks (taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, frequency, dueDate, homeID, active) SELECT %s, taskName, points, %s, assignedUserID, createdByUserID, STR_TO_DATE('%s','%s'), frequency, STR_TO_DATE('%s','%s'), homeID, 1 FROM tasks WHERE taskID=%s" % (newTaskID, approved, formattedDate, dateString, formattedDueDate, dateString, taskID))
+        cur.execute("INSERT INTO tasks (taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, frequency, dueDate, homeID, active) SELECT %s, taskName, points, 0, assignedUserID, createdByUserID, STR_TO_DATE('%s','%s'), frequency, STR_TO_DATE('%s','%s'), homeID, 1 FROM tasks WHERE taskID=%s" % (newTaskID, formattedDate, dateString, formattedDueDate, dateString, taskID))
         mysql.connection.commit()
     
+    def create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID):
+
+        # initialize sql cursor
+        cur = mysql.connection.cursor()
+
+        # get last taskID and create new taskID
+        cur.execute("SELECT taskID FROM tasks ORDER BY taskID DESC LIMIT 1")
+        lastTaskID = cur.fetchall()[0]
+        newTaskID = int((lastTaskID[0])) + 1
+        approved = 0
+
+        # set and format current date
+        currentDate = datetime.now()
+        formattedDate = str(currentDate.strftime('%Y-%m-%d'))
+        dateString = "%Y-%m-%d"   
+
+        # set and format due date based on frequency
+        dueDate = currentDate + timedelta(int(frequency))
+        formattedDueDate = str(dueDate.strftime('%Y-%m-%d'))
+
+        # add task to database due on current date
+        cur.execute("INSERT INTO tasks (taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, frequency, dueDate, homeID, active) VALUES (%s, '%s', %s, 0, %s, %s, STR_TO_DATE('%s','%s'), %s, STR_TO_DATE('%s','%s'), %s, 1)" % (newTaskID, str(taskName), points, assignedUserID, createdByUserID, formattedDate, dateString, frequency, formattedDate, dateString, homeID))
+        mysql.connection.commit()
+
     def get_user_tasks(userID):
 
         # initialize variable and mysql cursor
@@ -170,7 +193,7 @@ class Reward(object):
         mysql.connection.commit()
 
 class User(object):
-    def __init__(self, userID, username, displayName, admin, passwordHash, approvalRequired, points):
+    def __init__(self, userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID):
         self.userID = userID
         self.username = username
         self.displayName = displayName
@@ -178,6 +201,7 @@ class User(object):
         self.passwordHash = passwordHash
         self.approvalRequired = approvalRequired
         self.points = points
+        self.homeID = homeID
 
     @classmethod
 
@@ -196,7 +220,7 @@ class User(object):
         if user == []:
             return None
         else :
-            return User(user[0]['userID'],user[0]['username'],user[0]['displayName'],user[0]['admin'],user[0]['passwordHash'],user[0]['approvalRequired'],user[0]['points'])
+            return User(user[0]['userID'],user[0]['username'],user[0]['displayName'],user[0]['admin'],user[0]['passwordHash'],user[0]['approvalRequired'],user[0]['points'],user[0]['homeID'])
 
     def get_userID_from_username(username):
 
@@ -335,7 +359,7 @@ def admin():
         elif thisTask.approved == 1 and thisTask.active ==1:
             pendingTasks.append(thisTask)
     
-
+    print(pendingTasks)
     # get rewards data for current home
     homeRewards=[]
     homeRewardsTuple = Reward.get_home_rewards(home.homeID)
@@ -464,7 +488,47 @@ def deleteTask(taskID):
 
     return redirect(url_for('admin'))
 
+@app.route('/admin/newtask', methods=['GET','POST'])
+def createTask():
+    if request.method == "POST":
 
+        # get current user
+        userID = session['userID']
+        user = User.get_user(userID)
+
+        # get task info from form and user object
+        taskName = request.form['taskName']
+        points = request.form['points']
+        assignedUserID = request.form['assignedUserID']
+        createdByUserID = user.userID
+        frequency = request.form['frequency']
+        homeID = user.homeID
+
+        # create new task for future date
+        newTask = Task.create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID)
+
+        return redirect(url_for('admin'))
+
+    if request.method == "GET":
+
+        # get current user
+        userID = session['userID']
+        user = User.get_user(userID)
+
+        # get users for current home
+        homeUsers=[]
+        homeUsersTuple = User.get_home_users(user.homeID)   
+        for f in range(len(homeUsersTuple)):
+            homeUsers.append(int(((homeUsersTuple[f])[0])))
+    
+        # add users to output
+        allUsers=[]
+        for g in range(len(homeUsers)):
+            thisUser = User.get_user(homeUsers[g])
+            allUsers.append(thisUser)
+
+        # display new task page
+        return render_template('newtask.html',allUsers=allUsers)
 
 @app.route('/user', methods=['GET', 'POST'])
 def user():
@@ -484,17 +548,20 @@ def user():
     userPendingTasks = []
     userActiveTasks = []
     userCompletedTasks = []
-
+    print(formattedDate)
+    
     for userTask in userTasks:
         thisTask = Task.get_task(userTask)
-
-        if thisTask.approved == 0 and str(thisTask.dueDate) == formattedDate and thisTask.active == 1:        
+        thisDate = str(thisTask.dueDate)
+        if thisTask.approved == 0  and thisTask.active == 1 and thisDate == formattedDate:        
             userActiveTasks.append(thisTask)
+            
         elif thisTask.approved == 1 and thisTask.active == 1:
             userPendingTasks.append(thisTask)
-        elif thisTask.approved == 2 and str(thisTask.dueDate) == formattedDate and thisTask.active ==1:
+        elif thisTask.approved == 2  and thisTask.active ==1:
             userCompletedTasks.append(thisTask)
-
+        else:
+            print(thisTask.dueDate == formattedDate)
     
     userRewards = []    
     userRewardsTuple = Reward.get_user_rewards(userID)

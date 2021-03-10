@@ -11,13 +11,19 @@
       <form action="" method="post">
         <label for="taskName">task name:</label>
         <input type="text" placeholder="task name" name="taskName" value="{{
-          request.form.taskName }}">
+          request.form.taskName }}"> 
         <label for="points">points:</label>  
         <input type="text" placeholder="points" name="points" value="{{
-            request.form.points }}">
+            request.form.points }}"> 
         <label for="frequency">frequency in days:</label>
         <input type="frequency" placeholder="frequency in days" name="frequency" value="{{
                 request.form.frequency }}">
+        <label for="assignedUserID">user:</label>  
+        <select id="assignedUserID" name="assignedUserID">
+          {% for user in allUsers %}
+            <option value="{{ user.userID }}">{{ user.displayName }}</option>
+          {% endfor %}
+          </select>
         <input class="btn btn-default" type="submit" value="Create">
       </form>
       {% if error %}

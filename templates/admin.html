@@ -6,10 +6,13 @@
   </head>
   <body>
     <div class="container">
-      <h1>chorepoint admin dashboard</h1>
-      <h2> hello, {{ displayName }}! welcome to {{ home }}.</h2>
+      <h1> hello, {{ displayName }}! welcome to {{ home }}.</h1>
+      <br>
+      <div class="container">
+      <h2>your home dashboard</h2>
       <br>
       <div class="row">
+        
         <div class="col-sm">
       <h2>tasks pending approval</h2>
 
@@ -43,10 +46,6 @@
         </table>
       {% endif %}
       <br>
-      </div>
-      </div>
-      <div class = "row">
-        <div class= "col-sm">
       <h2>all active tasks</h2>
       {% if allTasks == [] %}
       no tasks
@@ -124,12 +123,13 @@
           </table>
           {% endif %}
         <br>
-        <a href="newreward">new reward</a>
+        <a href="admin/newreward">new reward</a>
         </div>
-        
-        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm">
+          <h2>all users</h2>
         <br>
-        <h2>all users</h2>
         <table>
           <tr>
             <th>username</th>
@@ -146,7 +146,13 @@
           </tr>
           {% endfor %}
         </table>
-      <br>
-    </div>
+        </div>
+      </div>
+    <br>
+      </div>
+  <div class="container">
+      <h2><a href="self">do your own tasks</a></h2>
+   </div>
+  </div>
   </body>
 </html>

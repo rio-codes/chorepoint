@@ -1,0 +1,22 @@
+<html>
+  <head>
+    <title>new reward</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="static/bootstrap.min.css" rel="stylesheet" media="screen">
+  </head>
+  <body>
+    <div class="container">
+      <h1>new reward</h1>
+      <br>
+      <form action="" method="post">
+        <label for="rewardName">reward name:</label>
+        <input type="text" placeholder="reward name" name="rewardName" value="{{
+          request.form.rewardName }}"> 
+        <label for="points">points:</label>  
+        <input type="text" placeholder="points" name="points" value="{{
+            request.form.points }}"> 
+        <input class="btn btn-default" type="submit" value="Create">
+      </form>
+    </div>
+  </body>
+</html>

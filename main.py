@@ -191,6 +191,20 @@ class Reward(object):
         # insert new reward into database
         cur.execute("INSERT INTO rewards (rewardID, rewardName, points, approved, assignedUserID, active, homeID) SELECT %s, rewardName, points, 0, assignedUserID, 1, homeID FROM rewards WHERE rewardID=%s" % (n, r))
         mysql.connection.commit()
+    
+    def create_new_reward(rewardName, points, homeID):
+
+        # initialize sql cursor
+        cur = mysql.connection.cursor()
+
+        # get last rewardID and create new rewardID
+        cur.execute("SELECT rewardID FROM rewards ORDER BY rewardID DESC LIMIT 1")
+        lastRewardID = cur.fetchall()[0]
+        newRewardID = int((lastRewardID[0])) + 1
+
+        # add reward to database
+        cur.execute("INSERT INTO rewards (rewardID, rewardName, points, approved, homeID, active) VALUES (%s, '%s', %s, 0, %s, 1)" % (newRewardID, str(rewardName), points, homeID))
+        mysql.connection.commit()
 
 class User(object):
     def __init__(self, userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID):
@@ -437,6 +451,28 @@ def deleteReward(rewardID):
 
     return redirect(url_for('admin'))
 
+@app.route('/admin/newreward', methods=['GET','POST'])
+def createReward():
+    if request.method == "POST":
+
+        # get current user
+        userID = session['userID']
+        user = User.get_user(userID)
+
+        # get reward info from form and user object
+        rewardName = request.form['rewardName']
+        points = request.form['points']
+        homeID = user.homeID
+
+        # create new reward
+        Reward.create_new_reward(rewardName, points, homeID)
+
+        return redirect(url_for('admin'))
+
+    if request.method == "GET":
+
+        # display new reward page
+        return render_template('newreward.html')
 
 @app.route('/admin/approveTask/<taskID>', methods=['GET', 'POST'])   
 def approveTask(taskID):

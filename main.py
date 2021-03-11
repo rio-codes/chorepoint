@@ -419,6 +419,7 @@ def approveReward(rewardID):
     # create next reward
     Reward.create_next_reward(rewardID)
 
+    # return to admin page
     return redirect(url_for('admin'))
 
 @app.route('/admin/denyReward/<rewardID>', methods=['GET'])
@@ -436,6 +437,7 @@ def denyReward(rewardID):
     reward = Reward.get_reward(rewardID)
     User.add_points(reward.assignedUserID, reward.points)
 
+    # return to admin page
     return redirect(url_for('admin'))
 
 @app.route('/admin/deleteReward/<rewardID>', methods=['GET'])
@@ -449,6 +451,7 @@ def deleteReward(rewardID):
     cur.execute("UPDATE rewards SET active=0 WHERE rewardID=%s", r)
     mysql.connection.commit()
 
+    # return to admin page
     return redirect(url_for('admin'))
 
 @app.route('/admin/newreward', methods=['GET','POST'])
@@ -467,6 +470,7 @@ def createReward():
         # create new reward
         Reward.create_new_reward(rewardName, points, homeID)
 
+        # return to admin page
         return redirect(url_for('admin'))
 
     if request.method == "GET":
@@ -498,6 +502,7 @@ def approveTask(taskID):
     # add points to user
     User.add_points(task.assignedUserID, task.points)
 
+    # return to admin page
     return redirect(url_for('admin'))
 
 @app.route('/admin/denyTask/<taskID>', methods=['GET', 'POST'])
@@ -510,6 +515,7 @@ def denyTask(taskID):
     cur.execute("UPDATE tasks SET approved=0 WHERE taskID=%s", t)
     mysql.connection.commit()
 
+    # return to admin page
     return redirect(url_for('admin'))
 
 @app.route('/admin/deleteTask/<taskID>', methods=['GET', 'POST'])
@@ -522,6 +528,7 @@ def deleteTask(taskID):
     cur.execute("UPDATE tasks SET active=0 WHERE taskID=%s", t)
     mysql.connection.commit()
 
+    # return to admin page
     return redirect(url_for('admin'))
 
 @app.route('/admin/newtask', methods=['GET','POST'])
@@ -543,6 +550,7 @@ def createTask():
         # create new task for future date
         newTask = Task.create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID)
 
+        # return to admin page
         return redirect(url_for('admin'))
 
     if request.method == "GET":
@@ -568,24 +576,27 @@ def createTask():
 
 @app.route('/user', methods=['GET', 'POST'])
 def user():
+
+    # get user ID and create user object
     userID = session['userID']
     user = User.get_user(userID)
 
+    # get and format current date
     currentDate = datetime.now()
     formattedDate = str(currentDate.strftime('%Y-%m-%d'))
     
+    # get tasks for current user
     userTasks = []
-
     userTasksTuple = Task.get_user_tasks(userID)
-    print(userTasksTuple)
     for a in range(len(userTasksTuple)):
         userTasks.append(int(((userTasksTuple[a])[0])))
 
+    # initialize task arrays
     userPendingTasks = []
     userActiveTasks = []
     userCompletedTasks = []
-    print(formattedDate)
     
+    # fill arrays for active, pending, and completed tasks
     for userTask in userTasks:
         thisTask = Task.get_task(userTask)
         thisDate = str(thisTask.dueDate)
@@ -596,18 +607,19 @@ def user():
             userPendingTasks.append(thisTask)
         elif thisTask.approved == 2  and thisTask.active ==1:
             userCompletedTasks.append(thisTask)
-        else:
-            print(thisTask.dueDate == formattedDate)
     
+    # get rewards for current user
     userRewards = []    
     userRewardsTuple = Reward.get_user_rewards(userID)
     for a in range(len(userRewardsTuple)):
         userRewards.append(int(((userRewardsTuple[a])[0])))
 
+    # initialize reward arrays
     userAvailableRewards = []
     userPendingRewards = []
     userRedeemedRewards = []
 
+    # fill arrays for available, pending, and redeemed rewards
     for userReward in userRewards:
         thisReward = Reward.get_reward(userReward)
         if thisReward.approved == 0 and thisReward.active==1:
@@ -617,39 +629,50 @@ def user():
         elif thisReward.approved == 2 and thisReward.active==1: 
             userRedeemedRewards.append(thisReward)
 
+    # display user page with resulting output
     return render_template('user.html', username = user.username, points = user.points, userActiveTasks=userActiveTasks, userPendingTasks=userPendingTasks, userCompletedTasks=userCompletedTasks, userAvailableRewards=userAvailableRewards, userPendingRewards=userPendingRewards, userRedeemedRewards=userRedeemedRewards)
 
 @app.route('/user/redeem/<rewardID>')
 def redeemReward(rewardID):
+    # initialize mysql cursor
     cur = mysql.connection.cursor()
     
-  
+    # get reward and user objects
     reward = Reward.get_reward(rewardID)
-    print(reward.assignedUserID)
     userID = reward.assignedUserID
-    print(userID)
     user = User.get_user(userID)
+
+    # subtract reward points from user's points
     newPoints = user.points - reward.points
 
+    # initialize variables to be used in mysql queries
     n = newPoints
     r = (rewardID, )
     u = userID
+
+    # send award for approval to admin
     cur.execute("UPDATE rewards SET approved=1 WHERE rewardID=%s;", r)
     mysql.connection.commit()
 
+    # set new point value for user
     cur = mysql.connection.cursor()
-    cur.execute("UPDATE users SET points=%s WHERE userID=%s" % (n, u))
-    
+    cur.execute("UPDATE users SET points=%s WHERE userID=%s" % (n, u))   
     mysql.connection.commit()
 
+    # return to user page
     return redirect(url_for('user'))
 
 @app.route('/user/submitTask/<taskID>', methods=['GET', 'POST'])
 def submitTask(taskID):
+    # initialize mysql cursor and taskID variable
     cur = mysql.connection.cursor()
     t = (taskID,)
+
+    # send task for approval to admin
     cur.execute("UPDATE tasks SET approved=1 WHERE taskID=%s", t)
     mysql.connection.commit()
+
+    # return to user page
     return redirect(url_for('user'))
 
 if __name__ == "__main__":

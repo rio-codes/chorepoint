@@ -2,56 +2,12 @@
   <head>
     <title>new task</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="{{ url_for('static', filename='css/main.css')}}" rel="stylesheet" media="screen">
-    <link href="{{ url_for('static', filename='css/bootstrap.min.css')}}" rel="stylesheet" media="screen">
-    <script>
-       $(function () {
-   var bindDatePicker = function() {
-		$(".date").datetimepicker({
-        format:'YYYY-MM-DD',
-			icons: {
-				time: "fa fa-clock-o",
-				date: "fa fa-calendar",
-				up: "fa fa-arrow-up",
-				down: "fa fa-arrow-down"
-			}
-		}).find('input:first').on("blur",function () {
-			// check if the date is correct. We can accept dd-mm-yyyy and yyyy-mm-dd.
-			// update the format if it's yyyy-mm-dd
-			var date = parseDate($(this).val());
-
-			if (! isValidDate(date)) {
-				//create date based on momentjs (we have that)
-				date = moment().format('YYYY-MM-DD');
-			}
-
-			$(this).val(date);
-		});
-	}
-   
-   var isValidDate = function(value, format) {
-		format = format || false;
-		// lets parse the date to the best of our knowledge
-		if (format) {
-			value = parseDate(value);
-		}
-
-		var timestamp = Date.parse(value);
-
-		return isNaN(timestamp) == false;
-   }
-   
-   var parseDate = function(value) {
-		var m = value.match(/^(\d{1,2})(\/|-)?(\d{1,2})(\/|-)?(\d{4})$/);
-		if (m)
-			value = m[5] + '-' + ("00" + m[3]).slice(-2) + '-' + ("00" + m[1]).slice(-2);
-
-		return value;
-   }
-   
-   bindDatePicker();
- });
- </script>
+    <link href="{{ url_for('static', filename='main.css')}}" rel="stylesheet" media="screen">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
 
   </head>
   <body>
@@ -59,49 +15,47 @@
       <h1>new task</h1>
       <br>
       <form action="" method="post">
-        <div class="col-sm-6">
-          <div class="form-group">
-              <div class="collapse permanent-frequency show" id="permanent">
-                <input type="checkbox" data-toggle="collapse" data-target=".oneOff-frequency" name="permanent" value="{{request.form.permanent}}">
+      
+        
+
+        <div class="col-sm-4">
+              <div class="collapse permanent-frequency-dueDate show">                
+                <input type="checkbox" name="permanent" value="1" id="permanent" class="form-control-plaintext" data-toggle="collapse" data-target=".oneOff-frequency">
                 <label for="permanent">permanent</label>
               </div>
               <div class="collapse oneOff-frequency show" id="oneOff">
-                <input type="checkbox" data-toggle="collapse" data-target=".permanent-frequency" name="oneOff" value="{{request.form.oneOff}}">
+                <input type="checkbox" class="form-control-plaintext" data-toggle="collapse" data-target=".permanent-frequency-dueDate" name="oneOff" value="1">
                 <label for="oneOff">never repeats</label>
-              </div> 
+              </div>
+              <div class="flex-container">
               <label for="taskName">task name:</label>
-              <input type="text" placeholder="task name" name="taskName" value="{{request.form.taskName }}"> <br>
-              <label for="points">points:</label>  
-              <input type="text" placeholder="points" name="points" value="{{request.form.points }}"> <br>
-            <div class="collapse permanent-frequency oneOff-frequency show" id="frequency">
+              <input type="text" class="form-control-plaintext fill-width" placeholder="task name" name="taskName" value="{{request.form.taskName }}"> <br>
+              </div>
+              <div class="flex-container">
+                <label for="points">points:</label>  
+                <input type="text" class="form-control-plaintext fill-width" placeholder="points" name="points" value="{{request.form.points }}"> <br>
+              </div>
+            <div class="flex-container collapse permanent-frequency-dueDate oneOff-frequency show" id="frequency">
               <label for="frequency">frequency in days:</label>
-              <input type="text" data-toggle="collapse" placeholder="frequency in days" name="frequency" value="{{request.form.frequency }}"><br>
-            </div>
-            <div class ="collapse input-group date show" id="datetimepicker1">
-              <label for="dueDate">due date:</label>
-              <input type="text" data-toggle="collapse" name="dueDate" value="{{request.form.dueDate}}">
-              <span class="input-group-addon">
-                <span class="glyphicon glyphicon-calendar"></span>
-                </span>
-            </div>
+              <input type="text" class="form-control-plaintext fill-width" data-toggle="collapse" placeholder="frequency in days" name="frequency" value="{{request.form.frequency }}"><br>
+            </div> 
             <label for="assignedUserID">user:</label>  
-            <select id="assignedUserID" name="assignedUserID">
+            <select class="form-control-plaintext" id="assignedUserID" name="assignedUserID">
               {% for user in allUsers %}
                 <option value="{{ user.userID }}">{{ user.displayName }}</option>
               {% endfor %}
             </select><br>
+            <div class="flex-container collapse permanent-frequency-dueDate">
+              <label for="dueDate">due date:</label>
+              <input type="text" class="form-control-plaintext fill-width" name="dueDate" data-provide="datepicker" value="{{request.form.dueDate}}" data-date-format="yyyy-mm-dd" data-date-autoclose=true data-toggle="collapse"/>
+              <br>
+            </div>
             <input class="btn btn-default" type="submit" value="Create">
-          </div>
         </div>
       </form>
       {% if error %}
         <p class="error">{{ error }}
       {% endif %}
-        </div>
     </div>
-
-    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
   </body>
 </html>

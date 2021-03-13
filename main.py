@@ -86,7 +86,7 @@ class Task(object):
         cur.execute("INSERT INTO tasks (taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, frequency, dueDate, homeID, active) SELECT %s, taskName, points, 0, assignedUserID, createdByUserID, STR_TO_DATE('%s','%s'), frequency, STR_TO_DATE('%s','%s'), homeID, 1 FROM tasks WHERE taskID=%s" % (newTaskID, formattedDate, dateString, formattedDueDate, dateString, taskID))
         mysql.connection.commit()
     
-    def create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID):
+    def create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID, dueDate):
 
         # initialize sql cursor
         cur = mysql.connection.cursor()
@@ -544,15 +544,29 @@ def createTask():
         user = User.get_user(userID)
 
         # get task info from form and user object
+        try:
+            permanent = request.form['permanent']
+        except:
+            permanent = 0
+
+        try:
+            oneOff = request.form['oneOff']
+        except:
+            oneOff = 0
+
         taskName = request.form['taskName']
         points = request.form['points']
         assignedUserID = request.form['assignedUserID']
         createdByUserID = user.userID
         frequency = request.form['frequency']
+        dueDate = request.form['dueDate']
         homeID = user.homeID
 
+        if permanent == 1:
+            dueDate = "0000-00-00"
+        
         # create new task for future date
-        Task.create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID)
+        # Task.create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID, dueDate)
 
         # return to admin page
         return redirect(url_for('admin'))

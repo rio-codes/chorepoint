@@ -2,7 +2,8 @@
   <head>
     <title>chorepoint</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="static/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="{{ url_for('static', filename='css/main.css')}}" rel="stylesheet" media="screen">
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css')}}" rel="stylesheet" media="screen">
   </head>
   <body>
     <div class="container">
@@ -32,6 +33,28 @@
               {% endfor %}
             </table>
           {% endif %}
+          <br>
+      <h3>upcoming:</h3>
+      {% if userUpcomingTasks == [] %}
+      no tasks
+      {% else %}
+          <table>
+            <tr>
+              <th>task name</th>
+              <th>points</th>
+              <th>due date</th>
+              <th> </th>
+            </tr>
+
+            {% for task in userUpcomingTasks %}
+            <tr>
+              <td>{{task.taskName}}</td>
+              <td>{{task.points}}</td>
+              <td>{{task.dueDate}}</td>
+            </tr>
+            {% endfor %}
+          </table>
+        {% endif %}
       <br>
       </div>
       <div class="col-sm">

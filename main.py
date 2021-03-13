@@ -311,6 +311,10 @@ class Home(object):
 def index():
     return render_template('index.html')
 
+@app.route("/bootstrap.min.css")
+def bootstrap_css():
+    return render_template('bootstrap.min.css')
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
@@ -548,7 +552,7 @@ def createTask():
         homeID = user.homeID
 
         # create new task for future date
-        newTask = Task.create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID)
+        Task.create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID)
 
         # return to admin page
         return redirect(url_for('admin'))
@@ -595,19 +599,20 @@ def user():
     userPendingTasks = []
     userActiveTasks = []
     userCompletedTasks = []
+    userUpcomingTasks = []
     
-    # fill arrays for active, pending, and completed tasks
+    # fill arrays for active, pending, completed, and upcoming tasks
     for userTask in userTasks:
         thisTask = Task.get_task(userTask)
         thisDate = str(thisTask.dueDate)
         if thisTask.approved == 0  and thisTask.active == 1 and thisDate == formattedDate:        
             userActiveTasks.append(thisTask)
-            
         elif thisTask.approved == 1 and thisTask.active == 1:
             userPendingTasks.append(thisTask)
         elif thisTask.approved == 2  and thisTask.active ==1:
             userCompletedTasks.append(thisTask)
-    
+        elif thisTask.approved == 0  and thisTask.active == 1 and thisDate != formattedDate:
+            userUpcomingTasks.append(thisTask)
     # get rewards for current user
     userRewards = []    
     userRewardsTuple = Reward.get_user_rewards(userID)
@@ -630,7 +635,7 @@ def user():
             userRedeemedRewards.append(thisReward)
 
     # display user page with resulting output
-    return render_template('user.html', username = user.username, points = user.points, userActiveTasks=userActiveTasks, userPendingTasks=userPendingTasks, userCompletedTasks=userCompletedTasks, userAvailableRewards=userAvailableRewards, userPendingRewards=userPendingRewards, userRedeemedRewards=userRedeemedRewards)
+    return render_template('user.html', username = user.username, points = user.points, userActiveTasks=userActiveTasks, userPendingTasks=userPendingTasks, userCompletedTasks=userCompletedTasks, userAvailableRewards=userAvailableRewards, userPendingRewards=userPendingRewards, userRedeemedRewards=userRedeemedRewards, userUpcomingTasks=userUpcomingTasks)
 
 @app.route('/user/redeem/<rewardID>')
 def redeemReward(rewardID):
@@ -675,5 +680,60 @@ def submitTask(taskID):
     # return to user page
     return redirect(url_for('user'))
 
+@app.route('/self', methods=['GET', 'POST'])
+def self():
+
+    # get user ID and create user object
+    userID = session['userID']
+    user = User.get_user(userID)
+
+    # get and format current date
+    currentDate = datetime.now()
+    formattedDate = str(currentDate.strftime('%Y-%m-%d'))
+    
+    # get tasks for current user
+    selfTasks = []
+    selfTasksTuple = Task.get_user_tasks(userID)
+    for a in range(len(selfTasksTuple)):
+        selfTasks.append(int(((selfTasksTuple[a])[0])))
+
+    # initialize task arrays
+    selfActiveTasks = []
+    selfCompletedTasks = []
+    selfUpcomingTasks = []
+    
+    # fill arrays for active, completed, and upcoming tasks
+    for selfTask in selfTasks:
+        thisTask = Task.get_task(selfTask)
+        thisDate = str(thisTask.dueDate)
+        if thisTask.approved == 0  and thisTask.active == 1 and thisDate == formattedDate:        
+            selfActiveTasks.append(thisTask)
+        elif thisTask.approved == 2  and thisTask.active == 1:
+            selfCompletedTasks.append(thisTask)
+        elif thisTask.approved == 0  and thisTask.active == 1 and thisDate != formattedDate:
+            selfUpcomingTasks.append(thisTask)
+
+    # get rewards for current user
+    selfRewards = []    
+    selfRewardsTuple = Reward.get_user_rewards(userID)
+    for a in range(len(selfRewardsTuple)):
+        selfRewards.append(int(((selfRewardsTuple[a])[0])))
+
+    # initialize reward arrays
+    selfAvailableRewards = []
+    selfRedeemedRewards = []
+
+    # fill arrays for available and redeemed rewards
+    for selfReward in selfRewards:
+        thisReward = Reward.get_reward(selfReward)
+        if thisReward.approved == 0 and thisReward.active==1:
+            selfAvailableRewards.append(thisReward)
+        elif thisReward.approved == 2 and thisReward.active==1: 
+            selfRedeemedRewards.append(thisReward)
+
+    # display self page with resulting output
+    return render_template('self.html', username = user.username, points = user.points, selfActiveTasks=selfActiveTasks, selfCompletedTasks=selfCompletedTasks, selfUpcomingTasks=selfUpcomingTasks, selfAvailableRewards=selfAvailableRewards, selfRedeemedRewards=selfRedeemedRewards)
+
+
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8080, debug=True)
+    app.run(host="192.168.111.13", port=8080, debug=True)

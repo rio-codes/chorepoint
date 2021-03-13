@@ -1,0 +1,133 @@
+<html>
+  <head>
+    <title>chorepoint</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="{{ url_for('static', filename='css/main.css')}}" rel="stylesheet" media="screen">
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css')}}" rel="stylesheet" media="screen">
+  </head>
+  <body>
+    <div class="container">
+      <h1>hello, {{ username }}. You have {{ points }} points.</h1>
+      <br>
+      <h2>your tasks</h2>
+      <div class="row">
+        <div class="col-sm">
+      <h3>to do today:</h3>
+        {% if selfActiveTasks == [] %}
+        no tasks
+        {% else %}
+            <table>
+              <tr>
+                <th>task name</th>
+                <th>points</th>
+                <th> </th>
+              </tr>
+  
+              {% for task in selfActiveTasks %}
+              <tr>
+                <td>{{task.taskName}}</td>
+                <td>{{task.points}}</td>
+                <td><a href="self/submitTask/{{task.taskID}}">submit</a></td>
+              </tr>
+              {% endfor %}
+            </table>
+          {% endif %}
+          <br>
+          <h3>upcoming:</h3>
+      {% if selfUpcomingTasks == [] %}
+      no tasks
+      {% else %}
+          <table>
+            <tr>
+              <th>task name</th>
+              <th>points</th>
+              <th>due date</th>
+              <th> </th>
+            </tr>
+
+            {% for task in selfUpcomingTasks %}
+            <tr>
+              <td>{{task.taskName}}</td>
+              <td>{{task.points}}</td>
+              <td>{{task.dueDate}}</td>
+            </tr>
+            {% endfor %}
+          </table>
+        {% endif %}
+        <br>
+          <a href="self/newtask">new task</a>
+      <br>
+      </div>
+        <div class="col-sm">
+          <h3>complete:</h3>
+          {% if selfCompletedTasks == [] %}
+          no tasks
+          {% else %}
+            <table>
+              <tr>
+                <th>task name</th>
+                <th>points</th>
+                 <th>completed date</th>
+              </tr>
+  
+              {% for task in selfCompletedTasks %}
+              <tr>
+                <td>{{task.taskName}}</td>
+                <td>{{task.points}}</td>
+                <td>{{task.dateCompleted}}</td>
+              </tr>
+              {% endfor %}
+            </table>
+          {% endif %}
+          <br>
+          </div>
+    </div>
+    <h2>your rewards</h2>
+    <div class="row">
+      <div class="col-sm">
+        <h3>available:</h3>
+        {% if selfAvailableRewards == [] %}
+          no rewards
+          {% else %}
+            <table>
+              <tr>
+                <th>reward name</th>
+                <th>points</th>
+                <th> </th>
+              </tr>
+  
+              {% for reward in selfAvailableRewards %}
+              <tr>
+                <td>{{reward.rewardName}}</td>
+                <td>{{reward.points}}</td>
+                <td><a href="self/redeem/{{reward.rewardID}}">redeem</a></td>
+              </tr>
+              {% endfor %}
+            </table>
+          {% endif %}
+          <a href="self/newreward">new reward</a>
+      </div>
+      <div class="col-sm">
+        <h3>redeemed:</h3>
+        {% if selfRedeemedRewards == [] %}
+        no rewards
+        {% else %}
+          <table>
+            <tr>
+              <th>reward name</th>
+              <th>points</th>
+            </tr>
+
+            {% for reward in selfRedeemedRewards %}
+            <tr>
+              <td>{{reward.rewardName}}</td>
+              <td>{{reward.points}}</td>
+            </tr>
+            {% endfor %}
+          </table>
+        {% endif %}
+      </div>
+    </div>
+    </div>
+  </body>
+</html>

@@ -14,7 +14,7 @@ app.config['MYSQL_UNIX_SOCKET'] = '/home/rio/mysql/mysqld.sock'
 mysql = MySQL(app)
 
 class Task(object):
-    def __init__(self, taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, dateCompleted, frequency, dueDate, homeID, assignedUsername, active):
+    def __init__(self, taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, dateCompleted, frequency, dueDate, homeID, assignedUsername, active, permanent):
         self.taskID = taskID
         self.taskName = taskName
         self.points = points
@@ -28,6 +28,7 @@ class Task(object):
         self.homeID = homeID
         self.assignedUsername = assignedUsername
         self.active = active
+        self.permanent = permanent
 
     def get_task(taskID):
 
@@ -45,7 +46,7 @@ class Task(object):
         assignedUsername = assignedUser.username
 
         # return Task object
-        return Task(taskID, task[0]['taskName'], task[0]['points'],  task[0]['approved'], task[0]['assignedUserID'], task[0]['createdByUserID'], task[0]['dateCreated'], task[0]['dateCompleted'], task[0]['frequency'], task[0]['dueDate'], task[0]['homeID'], assignedUsername, task[0]['active'])
+        return Task(taskID, task[0]['taskName'], task[0]['points'],  task[0]['approved'], task[0]['assignedUserID'], task[0]['createdByUserID'], task[0]['dateCreated'], task[0]['dateCompleted'], task[0]['frequency'], task[0]['dueDate'], task[0]['homeID'], assignedUsername, task[0]['active'], task[0]['permanent'])
 
     def get_home_tasks(homeID):
 
@@ -60,7 +61,9 @@ class Task(object):
         # return taskIDs
         return tasks
     
-    def create_next_task(taskID, frequency):
+    def create_next_task(taskID):
+        # get task object
+        thisTask = Task.get_task(taskID)
 
         # initialize sql cursor
         cur = mysql.connection.cursor()
@@ -76,17 +79,22 @@ class Task(object):
         dateString = "%Y-%m-%d"   
 
         # set and format due date based on frequency
-        dueDate = currentDate + timedelta(int( ( ( frequency[0]) [0] ) ))
+        dueDate = currentDate + timedelta(int(thisTask.frequency))
         formattedDueDate = str(dueDate.strftime('%Y-%m-%d'))
 
         # intialize sql cursor
         cur = mysql.connection.cursor()
 
         # add new task to database
-        cur.execute("INSERT INTO tasks (taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, frequency, dueDate, homeID, active) SELECT %s, taskName, points, 0, assignedUserID, createdByUserID, STR_TO_DATE('%s','%s'), frequency, STR_TO_DATE('%s','%s'), homeID, 1 FROM tasks WHERE taskID=%s" % (newTaskID, formattedDate, dateString, formattedDueDate, dateString, taskID))
+        cur.execute("INSERT INTO tasks (taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, frequency, dueDate, homeID, active, permanent) SELECT %s, taskName, points, 0, assignedUserID, createdByUserID, STR_TO_DATE('%s','%s'), frequency, STR_TO_DATE('%s','%s'), homeID, 1, permanent FROM tasks WHERE taskID=%s" % (newTaskID, formattedDate, dateString, formattedDueDate, dateString, taskID))
         mysql.connection.commit()
     
-    def create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID, dueDate):
+    def create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID, dueDate, permanent, oneOff):
+
+        print("after called")
+        print(permanent)
+        print(frequency)
+        print(dueDate) 
 
         # initialize sql cursor
         cur = mysql.connection.cursor()
@@ -95,20 +103,42 @@ class Task(object):
         cur.execute("SELECT taskID FROM tasks ORDER BY taskID DESC LIMIT 1")
         lastTaskID = cur.fetchall()[0]
         newTaskID = int((lastTaskID[0])) + 1
-        approved = 0
 
         # set and format current date
+
+        
         currentDate = datetime.now()
+        print(currentDate)
         formattedDate = str(currentDate.strftime('%Y-%m-%d'))
-        dateString = "%Y-%m-%d"   
+        print(formattedDate)
+        dateString = "%Y-%m-%d"
 
-        # set and format due date based on frequency
-        dueDate = currentDate + timedelta(int(frequency))
-        formattedDueDate = str(dueDate.strftime('%Y-%m-%d'))
+        # check if task is permanent
+        if dueDate == "3000-01-01" and permanent == "1":
+            # add task to database
+              cur.execute("INSERT INTO tasks (taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, frequency, dueDate, homeID, active, permanent) VALUES (%s, '%s', %s, 0, %s, %s, STR_TO_DATE('%s','%s'), %s, STR_TO_DATE('%s','%s'), %s, 1, 1)" % (newTaskID, str(taskName), points, assignedUserID, createdByUserID, formattedDate, dateString, frequency, dueDate, dateString, homeID))
+              mysql.connection.commit()
 
-        # add task to database due on current date
-        cur.execute("INSERT INTO tasks (taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, frequency, dueDate, homeID, active) VALUES (%s, '%s', %s, 0, %s, %s, STR_TO_DATE('%s','%s'), %s, STR_TO_DATE('%s','%s'), %s, 1)" % (newTaskID, str(taskName), points, assignedUserID, createdByUserID, formattedDate, dateString, frequency, formattedDate, dateString, homeID))
-        mysql.connection.commit()
+        # check if task is one-off
+        elif oneOff == 1:
+            print(frequency)
+
+            # add task to database due on future date
+            cur.execute("INSERT INTO tasks (taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, frequency, dueDate, homeID, active, permanent) VALUES (%s, '%s', %s, 0, %s, %s, STR_TO_DATE('%s','%s'), %s, STR_TO_DATE('%s','%s'), %s, 1, 0)" % (newTaskID, str(taskName), points, assignedUserID, createdByUserID, formattedDate, dateString, frequency, dueDate, dateString, homeID))
+            mysql.connection.commit()
+
+        # otherwise set dueDate to current date
+        else:
+
+            # set and format current date
+            currentDate = datetime.now()
+            print(currentDate)
+            formattedDate = str(currentDate.strftime('%Y-%m-%d'))
+            dateString = "%Y-%m-%d"   
+
+            # add task to database due today
+            cur.execute("INSERT INTO tasks (taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, frequency, dueDate, homeID, active, permanent) VALUES (%s, '%s', %s, 0, %s, %s, STR_TO_DATE('%s','%s'), %s, STR_TO_DATE('%s','%s'), %s, 1, 0)" % (newTaskID, str(taskName), points, assignedUserID, createdByUserID, formattedDate, dateString, frequency, formattedDate, dateString, homeID))
+            mysql.connection.commit()
 
     def get_user_tasks(userID):
 
@@ -122,6 +152,19 @@ class Task(object):
 
         # return taskIDs
         return tasks
+    
+    def delete_task(taskID):
+
+        print("delete task")
+        print("taskID")
+
+        # initialize variable and mysql cursor
+        cur = mysql.connection.cursor()
+        t = (taskID,)
+    
+        # deactivate task
+        cur.execute("UPDATE tasks SET active=0 WHERE taskID=%s", t)
+        mysql.connection.commit()
 
 class Reward(object):
     def __init__(self, rewardID, rewardName, points, approved, assignedUserID, homeID, active):
@@ -488,20 +531,25 @@ def approveTask(taskID):
     # initialize mysql cursor and taskID variables
     cur = mysql.connection.cursor()
     t = taskID
-    i = (taskID,)
+
+    task = Task.get_task(taskID)
 
     # get and format current date
     currentDate = datetime.now()
     formattedDate = str(currentDate.strftime('%Y-%m-%d'))
     dateString = "%Y-%m-%d"
 
+    # add points to user
+    User.add_points(task.assignedUserID, task.points)
+
     # approve task and update date completed
     cur.execute("UPDATE tasks SET approved=2, dateCompleted=STR_TO_DATE('%s', '%s') WHERE taskID=%s" % (formattedDate, dateString, t))
     mysql.connection.commit()
 
-    # create new task based on frequency
+    # create new task based on frequency if not permanent
     task = Task.get_task(taskID)
-    Task.create_next_task(taskID, task.frequency)
+    if task.permanent == 0:
+        Task.create_next_task(taskID)
     
     # add points to user
     User.add_points(task.assignedUserID, task.points)
@@ -524,13 +572,9 @@ def denyTask(taskID):
 
 @app.route('/admin/deleteTask/<taskID>', methods=['GET', 'POST'])
 def deleteTask(taskID):
-    # initialize mysql cursor and taskID variables
-    cur = mysql.connection.cursor()
-    t = (taskID,)
     
-    # deactivate task
-    cur.execute("UPDATE tasks SET active=0 WHERE taskID=%s", t)
-    mysql.connection.commit()
+    # delete task
+    Task.delete_task(taskID)
 
     # return to admin page
     return redirect(url_for('admin'))
@@ -548,25 +592,35 @@ def createTask():
             permanent = request.form['permanent']
         except:
             permanent = 0
+            frequency = 0
+            try:
+                oneOff = request.form['oneOff']
+            except:
+                oneOff = 0
+                frequency = request.form['frequency']
+                dueDate = "3000-01-01"
 
-        try:
-            oneOff = request.form['oneOff']
-        except:
+        if permanent == "1":
+            frequency = 0
             oneOff = 0
+            dueDate = "3000-01-01"
+            print(frequency)
+            print(dueDate)
+        
+
+        elif oneOff == "1":
+                frequency = 0
+                dueDate = request.form['dueDate']
 
         taskName = request.form['taskName']
         points = request.form['points']
         assignedUserID = request.form['assignedUserID']
         createdByUserID = user.userID
-        frequency = request.form['frequency']
-        dueDate = request.form['dueDate']
+        
         homeID = user.homeID
 
-        if permanent == 1:
-            dueDate = "0000-00-00"
-        
         # create new task for future date
-        # Task.create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID, dueDate)
+        Task.create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID, dueDate, permanent, oneOff)
 
         # return to admin page
         return redirect(url_for('admin'))
@@ -600,7 +654,7 @@ def user():
     user = User.get_user(userID)
 
     # get and format current date
-    currentDate = datetime.now()
+    currentDate = datetime.now().date()
     formattedDate = str(currentDate.strftime('%Y-%m-%d'))
     
     # get tasks for current user
@@ -615,17 +669,42 @@ def user():
     userCompletedTasks = []
     userUpcomingTasks = []
     
+    
+    # create new tasks for uncompleted tasks
+    for userTask in userTasks:
+        thisTask = Task.get_task(userTask)
+
+        # format dueDate as datetime object
+        #dueDateObj = datetime.strptime(thisTask.dueDate, '%Y-%m-%d')
+
+        # check if current task is uncompleted and old
+        #print("taskID")
+        #print(thisTask.taskID)
+        #print("dueDate")
+        #print(thisTask.dueDate)
+        #print(type(thisTask.dueDate))
+        #print("currentDate")
+        #print(currentDate)
+        #print(type(currentDate))
+        #print(thisTask.dueDate < currentDate)
+
+        if thisTask.approved == 0 and thisTask.dueDate < currentDate  and thisTask.active == 1:  
+            print(thisTask.taskName)
+            Task.create_next_task(thisTask.taskID)          
+            Task.delete_task(thisTask.taskID)
+            
+
     # fill arrays for active, pending, completed, and upcoming tasks
     for userTask in userTasks:
         thisTask = Task.get_task(userTask)
         thisDate = str(thisTask.dueDate)
-        if thisTask.approved == 0  and thisTask.active == 1 and thisDate == formattedDate:        
+        if thisTask.approved == 0  and thisTask.active == 1 and (thisDate == formattedDate or thisTask.permanent == 1):        
             userActiveTasks.append(thisTask)
         elif thisTask.approved == 1 and thisTask.active == 1:
             userPendingTasks.append(thisTask)
         elif thisTask.approved == 2  and thisTask.active ==1:
             userCompletedTasks.append(thisTask)
-        elif thisTask.approved == 0  and thisTask.active == 1 and thisDate != formattedDate:
+        elif thisTask.approved == 0  and thisTask.active == 1 and thisTask.dueDate > currentDate:
             userUpcomingTasks.append(thisTask)
     # get rewards for current user
     userRewards = []    
@@ -683,13 +762,18 @@ def redeemReward(rewardID):
 
 @app.route('/user/submitTask/<taskID>', methods=['GET', 'POST'])
 def submitTask(taskID):
-    # initialize mysql cursor and taskID variable
+    # initialize mysql cursor, task variable, and task object
     cur = mysql.connection.cursor()
     t = (taskID,)
+    task = Task.get_task(taskID)
 
     # send task for approval to admin
     cur.execute("UPDATE tasks SET approved=1 WHERE taskID=%s", t)
     mysql.connection.commit()
+
+    # create new task if permanent
+    if task.permanent == 1:
+        Task.create_next_task(taskID)
 
     # return to user page
     return redirect(url_for('user'))
@@ -750,4 +834,5 @@ def self():
 
 
 if __name__ == "__main__":
+    app.config['TRAP_BAD_REQUEST_ERRORS'] = True
     app.run(host="192.168.111.13", port=8080, debug=True)

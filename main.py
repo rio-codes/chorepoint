@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session
-from flask_login import LoginManager 
+from flask_login import current_user, logout_user, LoginManager, login_user, login_required
 from flask_mysqldb import MySQL
-from flask_bcrypt import Bcrypt
 from datetime import datetime, timedelta
 import hashlib
 import oak as cfg
@@ -10,9 +9,9 @@ app = Flask(__name__)
 app.config.from_envvar("CHOREPOINT_SETTINGS")
 
 mysql = MySQL(app)
-bcrypt = Bcrypt(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
+login_manager.login_view = "login"
 
 class Task(object):
     def __init__(self, taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, dateCompleted, frequency, dueDate, homeID, assignedUsername, active, permanent):
@@ -261,9 +260,11 @@ class User(object):
         self.approvalRequired = approvalRequired
         self.points = points
         self.homeID = homeID
-        self.is_authenticated = is_authenticated
         self.is_active = is_active
         self.is_anonymous = is_anonymous
+
+    def is_authenticated(self):
+        return True
 
     @classmethod
 
@@ -282,7 +283,7 @@ class User(object):
         if user == []:
             return None
         else :
-            return User(user[0]['userID'],user[0]['username'],user[0]['displayName'],user[0]['admin'],user[0]['passwordHash'],user[0]['approvalRequired'],user[0]['points'],user[0]['is_authenticated'],user[0]['is_active'],user[0]['is_anonymous'])
+            return User(user[0]['userID'],user[0]['username'],user[0]['displayName'],user[0]['admin'],user[0]['passwordHash'],user[0]['approvalRequired'],user[0]['points'],user[0]['homeID'],user[0]['is_authenticated'],user[0]['is_active'],user[0]['is_anonymous'])
 
     def get_userID_from_username(username):
 
@@ -329,10 +330,11 @@ class User(object):
         cur.execute("UPDATE users SET points=%s WHERE userID=%s" % (newPoints, userID))
         mysql.connection.commit()
 
-    def get_id(userID):
-
+    def get_id(self):
+        print("get id")
+        userID = self.userID
         # return unicode user ID
-        return chr(userID)
+        return userID
 
 class Home(object):
     def __init__(self, homeID, homeName, adminUserID):
@@ -360,8 +362,14 @@ class Home(object):
         return self
 
 @login_manager.user_loader
-def load_user(user_id):
-    return User.get(user_id)
+def load_user(userID):
+    print("load_user")
+    try:
+        user = User.get_user(userID)
+        print(user.username)
+        return User.get_user(userID)
+    except:
+        return None
 
 @app.route("/")
 def index():
@@ -399,27 +407,34 @@ def login():
 
             if user.passwordHash != pw_hash:    
                 error = 'Incorrect password.'
+                print(error)
             else:
                 # initialize login session
-                session['userID'] = user.userID
-                # login_user(user)
+                
+                userIDTuple = (user.userID,)
+                cur = mysql.connection.cursor()
+                cur.execute("UPDATE users SET is_authenticated=1 WHERE userID=%s", userIDTuple )
+                mysql.connection.commit()
+                user = User.get_user(userID)
+                print(user.is_authenticated)
+                login_user(user)
+                session['userID'] = 'userID'
 
                 # send user to correct page
                 if user.admin == 1:
                     return redirect(url_for('admin'))
                 else:
                     return redirect(url_for('user'))
-    if request.method == "GET": 
-    
+    if request.method == "GET":     
         # display login page
         return render_template('login.html', error=error)
 
 @app.route('/admin')
-
+@login_required
 def admin():
     # get current logged in user
-    userID = session['userID']    
-    adminUser = User.get_user(userID)
+    # userID = session['userID']    
+    adminUser = current_user
 
     # get current home
     home = Home.get_home(adminUser.userID)
@@ -473,6 +488,7 @@ def admin():
     return render_template('admin.html',displayName=adminUser.displayName,home=home.homeName,allTasks=allTasks,allRewards=allRewards,allUsers=allUsers,pendingTasks=pendingTasks,pendingRewards=pendingRewards)
 
 @app.route('/admin/approveReward/<rewardID>', methods=['GET', 'POST'])   
+@login_required
 def approveReward(rewardID):
 
     # initialize mysql cursor and rewardID variables
@@ -490,6 +506,7 @@ def approveReward(rewardID):
     return redirect(url_for('admin'))
 
 @app.route('/admin/denyReward/<rewardID>', methods=['GET'])
+@login_required
 def denyReward(rewardID):
 
     # initialize mysql cursor and rewardID variables
@@ -508,6 +525,7 @@ def denyReward(rewardID):
     return redirect(url_for('admin'))
 
 @app.route('/admin/deleteReward/<rewardID>', methods=['GET'])
+@login_required
 def deleteReward(rewardID):
 
     # initialize mysql cursor and rewardID variables
@@ -522,12 +540,12 @@ def deleteReward(rewardID):
     return redirect(url_for('admin'))
 
 @app.route('/admin/newreward', methods=['GET','POST'])
+@login_required
 def createReward():
     if request.method == "POST":
 
         # get current user
-        userID = session['userID']
-        user = User.get_user(userID)
+        user = current_user
 
         # get reward info from form and user object
         rewardName = request.form['rewardName']
@@ -546,6 +564,7 @@ def createReward():
         return render_template('newreward.html')
 
 @app.route('/admin/approveTask/<taskID>', methods=['GET', 'POST'])   
+@login_required
 def approveTask(taskID):
 
     # initialize mysql cursor and taskID variables
@@ -575,6 +594,7 @@ def approveTask(taskID):
     return redirect(url_for('admin'))
 
 @app.route('/admin/denyTask/<taskID>', methods=['GET', 'POST'])
+@login_required
 def denyTask(taskID):
     # initialize mysql cursor and taskID variables
     cur = mysql.connection.cursor()
@@ -588,6 +608,7 @@ def denyTask(taskID):
     return redirect(url_for('admin'))
 
 @app.route('/admin/deleteTask/<taskID>', methods=['GET', 'POST'])
+@login_required
 def deleteTask(taskID):
     
     # delete task
@@ -597,12 +618,12 @@ def deleteTask(taskID):
     return redirect(url_for('admin'))
 
 @app.route('/admin/newtask', methods=['GET','POST'])
+@login_required
 def createTask():
     if request.method == "POST":
 
         # get current user
-        userID = session['userID']
-        user = User.get_user(userID)
+        user = current_user
 
         # get task info from form and user object
         try:
@@ -645,8 +666,7 @@ def createTask():
     if request.method == "GET":
 
         # get current user
-        userID = session['userID']
-        user = User.get_user(userID)
+        user = current_user
 
         # get users for current home
         homeUsers=[]
@@ -658,18 +678,18 @@ def createTask():
         allUsers=[]
         for g in range(len(homeUsers)):
             thisUser = User.get_user(homeUsers[g])
-            if thisUser.userID != userID:
+            if thisUser.userID != user.userID:
                 allUsers.append(thisUser)
 
         # display new task page
         return render_template('newtask.html',allUsers=allUsers)
 
 @app.route('/user', methods=['GET', 'POST'])
+@login_required
 def user():
 
     # get user ID and create user object
-    userID = session['userID']
-    user = User.get_user(userID)
+    user = current_user
 
     # get and format current date
     currentDate = datetime.now().date()
@@ -677,7 +697,7 @@ def user():
     
     # get tasks for current user
     userTasks = []
-    userTasksTuple = Task.get_user_tasks(userID)
+    userTasksTuple = Task.get_user_tasks(user.userID)
     for a in range(len(userTasksTuple)):
         userTasks.append(int(((userTasksTuple[a])[0])))
 
@@ -713,7 +733,7 @@ def user():
 
     # get rewards for current user
     userRewards = []    
-    userRewardsTuple = Reward.get_user_rewards(userID)
+    userRewardsTuple = Reward.get_user_rewards(user.userID)
     for a in range(len(userRewardsTuple)):
         userRewards.append(int(((userRewardsTuple[a])[0])))
 
@@ -736,6 +756,7 @@ def user():
     return render_template('user.html', username = user.username, points = user.points, userActiveTasks=userActiveTasks, userPendingTasks=userPendingTasks, userCompletedTasks=userCompletedTasks, userAvailableRewards=userAvailableRewards, userPendingRewards=userPendingRewards, userRedeemedRewards=userRedeemedRewards, userUpcomingTasks=userUpcomingTasks)
 
 @app.route('/user/redeem/<rewardID>')
+@login_required
 def redeemReward(rewardID):
     
     # initialize mysql cursor
@@ -771,6 +792,7 @@ def redeemReward(rewardID):
     return redirect(url_for('user'))
 
 @app.route('/user/submitTask/<taskID>', methods=['GET', 'POST'])
+@login_required
 def submitTask(taskID):
     # initialize mysql cursor, task variable, and task object
     cur = mysql.connection.cursor()
@@ -789,11 +811,11 @@ def submitTask(taskID):
     return redirect(url_for('user'))
 
 @app.route('/self', methods=['GET', 'POST'])
+@login_required
 def self():
 
     # get user ID and create user object
-    userID = session['userID']
-    user = User.get_user(userID)
+    user = current_user
 
     # get and format current date
     currentDate = datetime.now().date()
@@ -801,7 +823,7 @@ def self():
     
     # get tasks for current user
     selfTasks = []
-    selfTasksTuple = Task.get_user_tasks(userID)
+    selfTasksTuple = Task.get_user_tasks(user.userID)
     for a in range(len(selfTasksTuple)):
         selfTasks.append(int(((selfTasksTuple[a])[0])))
 
@@ -829,7 +851,7 @@ def self():
 
     # get rewards for current user
     selfRewards = []    
-    selfRewardsTuple = Reward.get_user_rewards(userID)
+    selfRewardsTuple = Reward.get_user_rewards(user.userID)
     for a in range(len(selfRewardsTuple)):
         selfRewards.append(int(((selfRewardsTuple[a])[0])))
 
@@ -850,12 +872,12 @@ def self():
     return render_template('self.html', username = user.username, points = user.points, selfActiveTasks=selfActiveTasks, selfCompletedTasks=selfCompletedTasks, selfUpcomingTasks=selfUpcomingTasks, selfAvailableRewards=selfAvailableRewards, selfRedeemedRewards=selfRedeemedRewards)
 
 @app.route('/self/newtask', methods=['GET','POST'])
+@login_required
 def createSelfTask():
     if request.method == "POST":
 
         # get current user
-        userID = session['userID']
-        user = User.get_user(userID)
+        user = current_user
 
         # get task info from form and user object
         try:
@@ -884,7 +906,7 @@ def createSelfTask():
 
         taskName = request.form['taskName']
         points = request.form['points']
-        assignedUserID = userID
+        assignedUserID = user.userID
         createdByUserID = user.userID
         
         homeID = user.homeID
@@ -898,15 +920,15 @@ def createSelfTask():
     if request.method == "GET":
 
         # get current user
-        userID = session['userID']
-        user = User.get_user(userID)
+        user = current_user
 
         allUsers = [user]
 
         # display new task page
         return render_template('newtask.html',allUsers=allUsers)
 
-@app.route('/self/deletetask/<taskID>', methods=['GET','POST'])
+@app.route('/self/deleteTask/<taskID>', methods=['GET','POST'])
+@login_required
 def deleteSelfTask(taskID):
     
     # delete task
@@ -916,6 +938,7 @@ def deleteSelfTask(taskID):
     return redirect(url_for('self'))
 
 @app.route('/self/submitTask/<taskID>', methods=['GET', 'POST'])
+@login_required
 def submitSelfTask(taskID):
     # initialize mysql cursor and taskID variables
     cur = mysql.connection.cursor()
@@ -944,19 +967,19 @@ def submitSelfTask(taskID):
     return redirect(url_for('self'))
 
 @app.route('/self/newreward', methods=['GET','POST'])
+@login_required
 def createSelfReward():
     if request.method == "POST":
 
         # get current user
-        userID = session['userID']
-        user = User.get_user(userID)
+        user = current_user
 
         # get reward info from form and user object
         rewardName = request.form['rewardName']
         points = request.form['points']
 
         # create new reward
-        Reward.create_new_reward(rewardName, points, userID)
+        Reward.create_new_reward(rewardName, points, user.userID)
 
         # return to admin page
         return redirect(url_for('self'))
@@ -967,6 +990,7 @@ def createSelfReward():
         return render_template('newreward.html')
 
 @app.route('/self/deletereward/<rewardID>', methods=['GET','POST'])
+@login_required
 def selfDeleteReward():
     # initialize mysql cursor and rewardID variables
     cur = mysql.connection.cursor()
@@ -980,6 +1004,7 @@ def selfDeleteReward():
     return redirect(url_for('self'))
 
 @app.route('/self/redeem/<rewardID>')
+@login_required
 def redeemSelfReward(rewardID):
     
     # initialize mysql cursor
@@ -1018,12 +1043,12 @@ def redeemSelfReward(rewardID):
     return redirect(url_for('self'))
 
 @app.route('/notenough', methods=['GET'])
+@login_required
 def notenough():
     if request.method == "GET":
 
         # get current user and points
-        userID = session['userID']
-        user = User.get_user(userID)
+        user = current_user
         points = user.points
 
         return render_template('notenough.html', points=points)

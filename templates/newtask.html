@@ -45,6 +45,7 @@
               {% endfor %}
             </select><br>
             {% else %}
+            <input type="hidden" id="assignedUserID" name="assignedUserID" value="{{allUsers[0].userID}}">
             <b>assigned user: {{ allUsers[0].displayName }}</b><br>
             {% endif %}
             <div class="flex-container collapse permanent-frequency-dueDate">

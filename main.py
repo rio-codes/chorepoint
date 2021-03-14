@@ -1,17 +1,18 @@
 from flask import Flask, render_template, request, redirect, url_for, session
+from flask_login import LoginManager 
 from flask_mysqldb import MySQL
+from flask_bcrypt import Bcrypt
 from datetime import datetime, timedelta
+import hashlib
+import oak as cfg
 
 app = Flask(__name__)
+app.config.from_envvar("CHOREPOINT_SETTINGS")
 
-app.secret_key = 'S>&[8-$F?\:wtbX/'
-
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'password'
-app.config['MYSQL_DB'] = 'chorepoint'
-app.config['MYSQL_UNIX_SOCKET'] = '/home/rio/mysql/mysqld.sock'
 mysql = MySQL(app)
+bcrypt = Bcrypt(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
 
 class Task(object):
     def __init__(self, taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, dateCompleted, frequency, dueDate, homeID, assignedUsername, active, permanent):
@@ -155,9 +156,6 @@ class Task(object):
     
     def delete_task(taskID):
 
-        print("delete task")
-        print("taskID")
-
         # initialize variable and mysql cursor
         cur = mysql.connection.cursor()
         t = (taskID,)
@@ -235,7 +233,7 @@ class Reward(object):
         cur.execute("INSERT INTO rewards (rewardID, rewardName, points, approved, assignedUserID, active, homeID) SELECT %s, rewardName, points, 0, assignedUserID, 1, homeID FROM rewards WHERE rewardID=%s" % (n, r))
         mysql.connection.commit()
     
-    def create_new_reward(rewardName, points, homeID):
+    def create_new_reward(rewardName, points, assignedUserID):
 
         # initialize sql cursor
         cur = mysql.connection.cursor()
@@ -245,12 +243,16 @@ class Reward(object):
         lastRewardID = cur.fetchall()[0]
         newRewardID = int((lastRewardID[0])) + 1
 
+        # get homeID from userID
+        user = User.get_user(assignedUserID)
+        homeID = user.homeID
+
         # add reward to database
-        cur.execute("INSERT INTO rewards (rewardID, rewardName, points, approved, homeID, active) VALUES (%s, '%s', %s, 0, %s, 1)" % (newRewardID, str(rewardName), points, homeID))
+        cur.execute("INSERT INTO rewards (rewardID, rewardName, points, assignedUserID, approved, homeID, active) VALUES (%s, '%s', %s, %s, 0, %s, 1)" % (newRewardID, str(rewardName), points, assignedUserID,  homeID))
         mysql.connection.commit()
 
 class User(object):
-    def __init__(self, userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID):
+    def __init__(self, userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID, is_authenticated, is_active, is_anonymous):
         self.userID = userID
         self.username = username
         self.displayName = displayName
@@ -259,6 +261,9 @@ class User(object):
         self.approvalRequired = approvalRequired
         self.points = points
         self.homeID = homeID
+        self.is_authenticated = is_authenticated
+        self.is_active = is_active
+        self.is_anonymous = is_anonymous
 
     @classmethod
 
@@ -277,7 +282,7 @@ class User(object):
         if user == []:
             return None
         else :
-            return User(user[0]['userID'],user[0]['username'],user[0]['displayName'],user[0]['admin'],user[0]['passwordHash'],user[0]['approvalRequired'],user[0]['points'],user[0]['homeID'])
+            return User(user[0]['userID'],user[0]['username'],user[0]['displayName'],user[0]['admin'],user[0]['passwordHash'],user[0]['approvalRequired'],user[0]['points'],user[0]['is_authenticated'],user[0]['is_active'],user[0]['is_anonymous'])
 
     def get_userID_from_username(username):
 
@@ -306,7 +311,6 @@ class User(object):
         users = cur.fetchall()
         return users
     
-
     def add_points(userID, points):
 
         # initialize user variable and sql cursor
@@ -324,6 +328,11 @@ class User(object):
         cur = mysql.connection.cursor()
         cur.execute("UPDATE users SET points=%s WHERE userID=%s" % (newPoints, userID))
         mysql.connection.commit()
+
+    def get_id(userID):
+
+        # return unicode user ID
+        return chr(userID)
 
 class Home(object):
     def __init__(self, homeID, homeName, adminUserID):
@@ -350,6 +359,10 @@ class Home(object):
         self.adminUserID = adminUserID
         return self
 
+@login_manager.user_loader
+def load_user(user_id):
+    return User.get(user_id)
+
 @app.route("/")
 def index():
     return render_template('index.html')
@@ -361,11 +374,16 @@ def bootstrap_css():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
+    s = cfg.salt
+
     if request.method == "POST":
 
         # get username and password from form
         username = request.form['username']
         password = request.form['password']
+
+        pw = (s + password).encode()
+        pw_hash = hashlib.sha512(pw).hexdigest()
 
         # get userID and User object
         userID = User.get_userID_from_username(username)
@@ -377,20 +395,22 @@ def login():
         if user == None:
             error = 'Incorrect username.'
             print(error)
-        else: 
-            if user.passwordHash != password:    
+        else:
+
+            if user.passwordHash != pw_hash:    
                 error = 'Incorrect password.'
             else:
-
                 # initialize login session
                 session['userID'] = user.userID
+                # login_user(user)
 
                 # send user to correct page
                 if user.admin == 1:
                     return redirect(url_for('admin'))
                 else:
                     return redirect(url_for('user'))
-    if request.method == "GET":                
+    if request.method == "GET": 
+    
         # display login page
         return render_template('login.html', error=error)
 
@@ -550,9 +570,6 @@ def approveTask(taskID):
     task = Task.get_task(taskID)
     if task.permanent == 0:
         Task.create_next_task(taskID)
-    
-    # add points to user
-    User.add_points(task.assignedUserID, task.points)
 
     # return to admin page
     return redirect(url_for('admin'))
@@ -641,7 +658,8 @@ def createTask():
         allUsers=[]
         for g in range(len(homeUsers)):
             thisUser = User.get_user(homeUsers[g])
-            allUsers.append(thisUser)
+            if thisUser.userID != userID:
+                allUsers.append(thisUser)
 
         # display new task page
         return render_template('newtask.html',allUsers=allUsers)
@@ -670,23 +688,9 @@ def user():
     userUpcomingTasks = []
     
     
-    # create new tasks for uncompleted tasks
+    # create new tasks for uncompleted tasks and delete original tasks
     for userTask in userTasks:
         thisTask = Task.get_task(userTask)
-
-        # format dueDate as datetime object
-        #dueDateObj = datetime.strptime(thisTask.dueDate, '%Y-%m-%d')
-
-        # check if current task is uncompleted and old
-        #print("taskID")
-        #print(thisTask.taskID)
-        #print("dueDate")
-        #print(thisTask.dueDate)
-        #print(type(thisTask.dueDate))
-        #print("currentDate")
-        #print(currentDate)
-        #print(type(currentDate))
-        #print(thisTask.dueDate < currentDate)
 
         if thisTask.approved == 0 and thisTask.dueDate < currentDate  and thisTask.active == 1:  
             print(thisTask.taskName)
@@ -706,6 +710,7 @@ def user():
             userCompletedTasks.append(thisTask)
         elif thisTask.approved == 0  and thisTask.active == 1 and thisTask.dueDate > currentDate:
             userUpcomingTasks.append(thisTask)
+
     # get rewards for current user
     userRewards = []    
     userRewardsTuple = Reward.get_user_rewards(userID)
@@ -732,6 +737,7 @@ def user():
 
 @app.route('/user/redeem/<rewardID>')
 def redeemReward(rewardID):
+    
     # initialize mysql cursor
     cur = mysql.connection.cursor()
     
@@ -739,6 +745,10 @@ def redeemReward(rewardID):
     reward = Reward.get_reward(rewardID)
     userID = reward.assignedUserID
     user = User.get_user(userID)
+
+    # check if user has enough points
+    if user.points < reward.points:
+        return redirect(url_for('notenough'))
 
     # subtract reward points from user's points
     newPoints = user.points - reward.points
@@ -786,7 +796,7 @@ def self():
     user = User.get_user(userID)
 
     # get and format current date
-    currentDate = datetime.now()
+    currentDate = datetime.now().date()
     formattedDate = str(currentDate.strftime('%Y-%m-%d'))
     
     # get tasks for current user
@@ -804,12 +814,18 @@ def self():
     for selfTask in selfTasks:
         thisTask = Task.get_task(selfTask)
         thisDate = str(thisTask.dueDate)
-        if thisTask.approved == 0  and thisTask.active == 1 and thisDate == formattedDate:        
+        if thisTask.approved == 0  and thisTask.active == 1 and thisDate == currentDate:        
             selfActiveTasks.append(thisTask)
         elif thisTask.approved == 2  and thisTask.active == 1:
             selfCompletedTasks.append(thisTask)
-        elif thisTask.approved == 0  and thisTask.active == 1 and thisDate != formattedDate:
+        elif thisTask.approved == 0  and thisTask.active == 1 and thisDate != currentDate:
             selfUpcomingTasks.append(thisTask)
+
+        # delete uncompleted tasks and create new tasks
+        if thisTask.approved == 0 and thisTask.dueDate < currentDate  and thisTask.active == 1:  
+            print(thisTask.taskName)
+            Task.create_next_task(thisTask.taskID)          
+            Task.delete_task(thisTask.taskID)
 
     # get rewards for current user
     selfRewards = []    
@@ -829,9 +845,188 @@ def self():
         elif thisReward.approved == 2 and thisReward.active==1: 
             selfRedeemedRewards.append(thisReward)
 
+
     # display self page with resulting output
     return render_template('self.html', username = user.username, points = user.points, selfActiveTasks=selfActiveTasks, selfCompletedTasks=selfCompletedTasks, selfUpcomingTasks=selfUpcomingTasks, selfAvailableRewards=selfAvailableRewards, selfRedeemedRewards=selfRedeemedRewards)
 
+@app.route('/self/newtask', methods=['GET','POST'])
+def createSelfTask():
+    if request.method == "POST":
+
+        # get current user
+        userID = session['userID']
+        user = User.get_user(userID)
+
+        # get task info from form and user object
+        try:
+            permanent = request.form['permanent']
+        except:
+            permanent = 0
+            frequency = 0
+            try:
+                oneOff = request.form['oneOff']
+            except:
+                oneOff = 0
+                frequency = request.form['frequency']
+                dueDate = "3000-01-01"
+
+        if permanent == "1":
+            frequency = 0
+            oneOff = 0
+            dueDate = "3000-01-01"
+            print(frequency)
+            print(dueDate)
+        
+
+        elif oneOff == "1":
+                frequency = 0
+                dueDate = request.form['dueDate']
+
+        taskName = request.form['taskName']
+        points = request.form['points']
+        assignedUserID = userID
+        createdByUserID = user.userID
+        
+        homeID = user.homeID
+
+        # create new task for future date
+        Task.create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID, dueDate, permanent, oneOff)
+
+        # return to self page
+        return redirect(url_for('self'))
+
+    if request.method == "GET":
+
+        # get current user
+        userID = session['userID']
+        user = User.get_user(userID)
+
+        allUsers = [user]
+
+        # display new task page
+        return render_template('newtask.html',allUsers=allUsers)
+
+@app.route('/self/deletetask/<taskID>', methods=['GET','POST'])
+def deleteSelfTask(taskID):
+    
+    # delete task
+    Task.delete_task(taskID)
+
+    # return to self page
+    return redirect(url_for('self'))
+
+@app.route('/self/submitTask/<taskID>', methods=['GET', 'POST'])
+def submitSelfTask(taskID):
+    # initialize mysql cursor and taskID variables
+    cur = mysql.connection.cursor()
+    t = taskID
+
+    task = Task.get_task(taskID)
+
+    # get and format current date
+    currentDate = datetime.now()
+    formattedDate = str(currentDate.strftime('%Y-%m-%d'))
+    dateString = "%Y-%m-%d"
+
+    # add points to user
+    User.add_points(task.assignedUserID, task.points)
+
+    # automatically approve task and update date completed
+    cur.execute("UPDATE tasks SET approved=2, dateCompleted=STR_TO_DATE('%s', '%s') WHERE taskID=%s" % (formattedDate, dateString, t))
+    mysql.connection.commit()
+
+    # create new task based on frequency if not permanent
+    task = Task.get_task(taskID)
+    if task.permanent == 0:
+        Task.create_next_task(taskID)
+
+    # return to self page
+    return redirect(url_for('self'))
+
+@app.route('/self/newreward', methods=['GET','POST'])
+def createSelfReward():
+    if request.method == "POST":
+
+        # get current user
+        userID = session['userID']
+        user = User.get_user(userID)
+
+        # get reward info from form and user object
+        rewardName = request.form['rewardName']
+        points = request.form['points']
+
+        # create new reward
+        Reward.create_new_reward(rewardName, points, userID)
+
+        # return to admin page
+        return redirect(url_for('self'))
+
+    if request.method == "GET":
+
+        # display new reward page
+        return render_template('newreward.html')
+
+@app.route('/self/deletereward/<rewardID>', methods=['GET','POST'])
+def selfDeleteReward():
+    # initialize mysql cursor and rewardID variables
+    cur = mysql.connection.cursor()
+    r = (rewardID,)
+    
+    # deactivate reward
+    cur.execute("UPDATE rewards SET active=0 WHERE rewardID=%s", r)
+    mysql.connection.commit()
+
+    # return to self page
+    return redirect(url_for('self'))
+
+@app.route('/self/redeem/<rewardID>')
+def redeemSelfReward(rewardID):
+    
+    # initialize mysql cursor
+    cur = mysql.connection.cursor()
+    
+    # get reward and user objects
+    reward = Reward.get_reward(rewardID)
+    userID = reward.assignedUserID
+    user = User.get_user(userID)
+
+    # check if user has enough points
+    if user.points < reward.points:
+        return redirect(url_for('notenough'))
+
+    # subtract reward points from user's points
+    newPoints = user.points - reward.points
+
+    # initialize variables to be used in mysql queries
+    n = newPoints
+    r = (rewardID, )
+    u = userID
+
+    # automatically approve reward
+    cur.execute("UPDATE rewards SET approved=2 WHERE rewardID=%s;", r)
+    mysql.connection.commit()
+
+    # set new point value for user
+    cur = mysql.connection.cursor()
+    cur.execute("UPDATE users SET points=%s WHERE userID=%s" % (n, u))   
+    mysql.connection.commit()
+
+    # create next reward
+    Reward.create_next_reward(rewardID)
+
+    # return to self page
+    return redirect(url_for('self'))
+
+@app.route('/notenough', methods=['GET'])
+def notenough():
+    if request.method == "GET":
+
+        # get current user and points
+        userID = session['userID']
+        user = User.get_user(userID)
+        points = user.points
+
+        return render_template('notenough.html', points=points)
 
 if __name__ == "__main__":
     app.config['TRAP_BAD_REQUEST_ERRORS'] = True

@@ -1,4 +1,7 @@
+settings.cfg
+oak.py
 main_old.py
 example.py
-/venv
-/node_modules
+venv/
+node_modules/
+__pycache__/

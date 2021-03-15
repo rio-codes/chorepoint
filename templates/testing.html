@@ -1,0 +1,68 @@
+<div class="row">
+    <div class="col">
+        <h2>tasks pending approval</h2>
+
+                {% if pendingTasks == [] %}
+                no pending tasks
+                {% else %}
+                <table class="table table-sm">
+                    <tr>
+                    <th>task name</th>
+                    <th>points</th>
+                    <th>user</th>
+                    <th>frequency</hd>
+                    <th> </th> 
+                    <th> </th> 
+                    </tr>
+
+                    {% for task in pendingTasks %}
+                    <tr>
+                    <td>{{task.taskName}}</td>
+                    <td>{{task.points}}</td>
+                    <td>{{task.assignedUsername}}</td>
+                    {% if task.frequency == '1' %}
+                        <td>every day</td>
+                    {% else %}
+                        <td>every {{task.frequency}} days</td> 
+                    {% endif %}
+                    <td><a href = "/admin/approveTask/{{task.taskID}}">approve</a></td>
+                    <td><a href = "/admin/denyTask/{{task.taskID}}">deny</a></td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                {% endif %}
+    </div>
+    <div class="col">
+        <h2>all active tasks</h2>
+        {% if allTasks == [] %}
+        no tasks
+        {% else %}
+            <table table-sm>
+            <tr>
+                <th>task name</th>
+                <th>points</th>
+                <th>user</th>
+                <th>frequency</th>
+                <th>due date</th>
+                <th> </th>
+
+            </tr>
+
+            {% for task in allTasks %}
+            <tr>
+                <td>{{task.taskName}}</td>
+                <td>{{task.points}}</td>
+                <td>{{task.assignedUsername}}</td>
+                {% if task.frequency == '1' %}
+                <td>every day</td>
+                {% else %}
+                <td>every {{task.frequency}} days</td> 
+                {% endif %}
+                <td>{{task.dueDate}}</td>
+                <td><a href="/admin/deleteTask/{{task.taskID}}">delete</a></td>
+            </tr>
+            {% endfor %}
+            </table>
+        {% endif %}
+    </div>
+</div> 

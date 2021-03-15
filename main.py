@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session
 from flask_login import current_user, logout_user, LoginManager, login_user, login_required
 from flask_mysqldb import MySQL
 from datetime import datetime, timedelta
+from MySQLdb import escape_string as thwart
 import hashlib
 import oak as cfg
 
@@ -335,6 +336,30 @@ class User(object):
         userID = self.userID
         # return unicode user ID
         return userID
+    
+    def create_new_user(username, displayName, homeName, pw_hash):
+
+        # get last userID and create new userID
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT userID FROM users ORDER BY userID DESC LIMIT 1")
+        lastUserID = cur.fetchall()[0]
+        newUserID = int((lastUserID[0])) + 1
+
+        # get next homeID
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT homeID FROM homes ORDER BY homeID DESC LIMIT 1")
+        lastHomeID = cur.fetchall()[0]
+        newHomeID = int((lastHomeID[0])) + 1
+
+        # add new home to database
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO homes (homeID, homeName, adminUserID) VALUES (%s, '%s', %s)" % (newHomeID, homeName, newUserID))
+        mysql.connection.commit()
+
+        # add new user to database
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO users (userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID) VALUES (%s, '%s', '%s', 1, '%s', 0, 0, %s)" % (newUserID, username, displayName, pw_hash, newHomeID))
+        mysql.connection.commit()
 
 class Home(object):
     def __init__(self, homeID, homeName, adminUserID):
@@ -394,37 +419,34 @@ def login():
         pw_hash = hashlib.sha512(pw).hexdigest()
 
         # get userID and User object
-        userID = User.get_userID_from_username(username)
+        try:
+            userID = User.get_userID_from_username(username)
+        except:
+            error = 'Incorrect username and/or password.'
+            return render_template('login.html', error=error)
+
         user = User.get_user(userID)
-
-        error = None
-
-        # check username and password 
-        if user == None:
-            error = 'Incorrect username.'
-            print(error)
+            
+        if user.passwordHash != pw_hash:    
+            error = 'Incorrect password.'
+            return render_template('login.html', error=error)
         else:
+            # initialize login session
+            
+            userIDTuple = (user.userID,)
+            cur = mysql.connection.cursor()
+            cur.execute("UPDATE users SET is_authenticated=1 WHERE userID=%s", userIDTuple )
+            mysql.connection.commit()
+            user = User.get_user(userID)
+            print(user.is_authenticated)
+            login_user(user)
+            session['userID'] = 'userID'
 
-            if user.passwordHash != pw_hash:    
-                error = 'Incorrect password.'
-                print(error)
+            # send user to correct page
+            if user.admin == 1:
+                return redirect(url_for('admin'))
             else:
-                # initialize login session
-                
-                userIDTuple = (user.userID,)
-                cur = mysql.connection.cursor()
-                cur.execute("UPDATE users SET is_authenticated=1 WHERE userID=%s", userIDTuple )
-                mysql.connection.commit()
-                user = User.get_user(userID)
-                print(user.is_authenticated)
-                login_user(user)
-                session['userID'] = 'userID'
-
-                # send user to correct page
-                if user.admin == 1:
-                    return redirect(url_for('admin'))
-                else:
-                    return redirect(url_for('user'))
+                return redirect(url_for('user'))
     if request.method == "GET":     
         # display login page
         return render_template('login.html', error=error)
@@ -438,6 +460,8 @@ def admin():
 
     # get current home
     home = Home.get_home(adminUser.userID)
+
+    print(home.homeID)
 
     # get tasks data for current home
     homeTasks = []
@@ -474,7 +498,8 @@ def admin():
 
     # get users for current home
     homeUsers=[]
-    homeUsersTuple = User.get_home_users(home.homeID)   
+    homeUsersTuple = User.get_home_users(home.homeID)
+    print(homeUsersTuple)   
     for f in range(len(homeUsersTuple)):
         homeUsers.append(int(((homeUsersTuple[f])[0])))
     
@@ -482,6 +507,7 @@ def admin():
     allUsers=[]
     for g in range(len(homeUsers)):
         thisUser = User.get_user(homeUsers[g])
+        print(thisUser.username)
         allUsers.append(thisUser)
 
     # display admin page with output
@@ -702,8 +728,13 @@ def createTask():
         # create new task for future date
         Task.create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID, dueDate, permanent, oneOff)
 
-        # return to admin page
-        return redirect(url_for('admin'))
+        print(assignedUserID)
+        print(createdByUserID)
+        
+        if assignedUserID == createdByUserID:
+            return redirect(url_for('self'))
+        else:
+            return redirect(url_for('admin'))
 
     if request.method == "GET":
 
@@ -720,8 +751,7 @@ def createTask():
         allUsers=[]
         for g in range(len(homeUsers)):
             thisUser = User.get_user(homeUsers[g])
-            if thisUser.userID != user.userID:
-                allUsers.append(thisUser)
+            allUsers.append(thisUser)
 
         # display new task page
         return render_template('newtask.html',allUsers=allUsers)
@@ -736,6 +766,7 @@ def user():
     # get and format current date
     currentDate = datetime.now().date()
     formattedDate = str(currentDate.strftime('%Y-%m-%d'))
+    permanentDate = "3000-01-01"
     
     # get tasks for current user
     userTasks = []
@@ -862,6 +893,7 @@ def self():
     # get and format current date
     currentDate = datetime.now().date()
     formattedDate = str(currentDate.strftime('%Y-%m-%d'))
+    permanentDate = "3000-01-01"
     
     # get tasks for current user
     selfTasks = []
@@ -878,7 +910,8 @@ def self():
     for selfTask in selfTasks:
         thisTask = Task.get_task(selfTask)
         thisDate = str(thisTask.dueDate)
-        if thisTask.approved == 0  and thisTask.active == 1 and thisDate == formattedDate:        
+        print(thisDate == permanentDate)
+        if thisTask.approved == 0  and thisTask.active == 1 and (thisDate == formattedDate or thisDate == permanentDate):        
             selfActiveTasks.append(thisTask)
         elif thisTask.approved == 2  and thisTask.active == 1:
             selfCompletedTasks.append(thisTask)
@@ -1000,10 +1033,9 @@ def submitSelfTask(taskID):
     cur.execute("UPDATE tasks SET approved=2, dateCompleted=STR_TO_DATE('%s', '%s') WHERE taskID=%s" % (formattedDate, dateString, t))
     mysql.connection.commit()
 
-    # create new task based on frequency if not permanent
+    # create new task based on frequency
     task = Task.get_task(taskID)
-    if task.permanent == 0:
-        Task.create_next_task(taskID)
+    Task.create_next_task(taskID)
 
     # return to self page
     return redirect(url_for('self'))
@@ -1094,6 +1126,45 @@ def notenough():
         points = user.points
 
         return render_template('notenough.html', points=points)
+
+@app.route('/register', methods=["GET", "POST"])
+def register():
+    error = None
+    s = cfg.salt
+
+    if request.method == "POST":
+
+        # get info from form
+        displayName = request.form['displayName']
+        username = request.form['username']
+        homeName = request.form['homeName']
+        password = request.form['password']
+        confirm = request.form['confirm']
+        error = None
+
+        if password != confirm:
+            error = 'Passwords do not match.'
+        else:
+            cur = mysql.connection.cursor()
+            u = (username,)
+            cur.execute("SELECT * FROM users WHERE username = %s", u)
+            isUser = cur.fetchall()
+            print(isUser)
+            if isUser == True:
+                error = 'That username is taken'
+                return render_template('register.html', error=error)
+            else:
+                pw = (s + password).encode()
+                pw_hash = hashlib.sha512(pw).hexdigest()
+                User.create_new_user(username, displayName, homeName, pw_hash)
+                return redirect(url_for('login'))
+
+    if request.method == "GET":     
+        # display register page
+        return render_template('register.html', error=error)
+
+
+
 
 if __name__ == "__main__":
     app.config['TRAP_BAD_REQUEST_ERRORS'] = True

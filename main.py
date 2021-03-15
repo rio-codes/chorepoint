@@ -485,7 +485,49 @@ def admin():
         allUsers.append(thisUser)
 
     # display admin page with output
-    return render_template('admin.html',displayName=adminUser.displayName,home=home.homeName,allTasks=allTasks,allRewards=allRewards,allUsers=allUsers,pendingTasks=pendingTasks,pendingRewards=pendingRewards)
+    return render_template('admin.html',displayName=adminUser.displayName,home=home.homeName,allTasks=allTasks,allRewards=allRewards,allUsers=allUsers,pendingTasks=pendingTasks,pendingRewards=pendingRewards,adminUser=adminUser)
+
+@app.route('/admin/<userID>')
+@login_required
+def adminUser(userID):
+    # get current user
+    user = User.get_user(userID)
+
+    # get tasks data for current user
+    userTasks = []
+    userTasksTuple = Task.get_user_tasks(user.userID)
+    for a in range(len(userTasksTuple)):
+        userTasks.append(int(((userTasksTuple[a])[0])))
+    
+    # get active and pending tasks and add to output
+    allTasks=[]
+    pendingTasks=[]
+    for b in range(len(userTasks)):
+        thisTask = Task.get_task(userTasks[b]) 
+        if thisTask.approved == 0 and thisTask.active == 1:
+            allTasks.append(thisTask)
+        elif thisTask.approved == 1 and thisTask.active ==1:
+            pendingTasks.append(thisTask)
+    
+    print(pendingTasks)
+    # get rewards data for current user
+    userRewards=[]
+    userRewardsTuple = Reward.get_user_rewards(user.userID)
+    for c in range(len(userRewardsTuple)):
+        userRewards.append(int(((userRewardsTuple[c])[0])))
+    
+    # get active and pending rewards and add to output
+    allRewards=[]
+    pendingRewards=[]
+    for d in range(len(userRewards)):
+        thisReward = Reward.get_reward(userRewards[d])
+        if thisReward.approved == 0 and thisReward.active==1:
+            allRewards.append(thisReward)
+        elif thisReward.approved == 1 and thisReward.active==1:
+            pendingRewards.append(thisReward)
+    
+    # display admin user page with output
+    return render_template('adminuser.html',displayName=user.displayName,allTasks=allTasks,allRewards=allRewards,pendingTasks=pendingTasks,pendingRewards=pendingRewards,adminUser=adminUser,user=user)
 
 @app.route('/admin/approveReward/<rewardID>', methods=['GET', 'POST'])   
 @login_required
@@ -726,7 +768,7 @@ def user():
             userActiveTasks.append(thisTask)
         elif thisTask.approved == 1 and thisTask.active == 1:
             userPendingTasks.append(thisTask)
-        elif thisTask.approved == 2  and thisTask.active ==1:
+        elif thisTask.approved == 2  and thisTask.active ==1 and thisDate == formattedDate:
             userCompletedTasks.append(thisTask)
         elif thisTask.approved == 0  and thisTask.active == 1 and thisTask.dueDate > currentDate:
             userUpcomingTasks.append(thisTask)
@@ -836,11 +878,11 @@ def self():
     for selfTask in selfTasks:
         thisTask = Task.get_task(selfTask)
         thisDate = str(thisTask.dueDate)
-        if thisTask.approved == 0  and thisTask.active == 1 and thisDate == currentDate:        
+        if thisTask.approved == 0  and thisTask.active == 1 and thisDate == formattedDate:        
             selfActiveTasks.append(thisTask)
         elif thisTask.approved == 2  and thisTask.active == 1:
             selfCompletedTasks.append(thisTask)
-        elif thisTask.approved == 0  and thisTask.active == 1 and thisDate != currentDate:
+        elif thisTask.approved == 0  and thisTask.active == 1 and thisDate != formattedDate:
             selfUpcomingTasks.append(thisTask)
 
         # delete uncompleted tasks and create new tasks
@@ -869,7 +911,7 @@ def self():
 
 
     # display self page with resulting output
-    return render_template('self.html', username = user.username, points = user.points, selfActiveTasks=selfActiveTasks, selfCompletedTasks=selfCompletedTasks, selfUpcomingTasks=selfUpcomingTasks, selfAvailableRewards=selfAvailableRewards, selfRedeemedRewards=selfRedeemedRewards)
+    return render_template('self.html', username = user.username, points = user.points, selfActiveTasks=selfActiveTasks, selfCompletedTasks=selfCompletedTasks, selfUpcomingTasks=selfUpcomingTasks, selfAvailableRewards=selfAvailableRewards, selfRedeemedRewards=selfRedeemedRewards, user=user)
 
 @app.route('/self/newtask', methods=['GET','POST'])
 @login_required

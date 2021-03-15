@@ -2,90 +2,148 @@
   <head>
     <title>chorepoint</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans&family=Raleway:wght@300&display=swap" rel="stylesheet"> 
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
     <link href="{{ url_for('static', filename='css/main.css')}}" rel="stylesheet" media="screen">
-    <link href="{{ url_for('static', filename='css/bootstrap.min.css')}}" rel="stylesheet" media="screen">
   </head>
   <body>
-    <div class="container">
-      <h1> hello, {{ displayName }}! welcome to {{ home }}.</h1>
-      <br>
-      <div class="container">
-      <h2>your home dashboard</h2>
-      <br>
+    <div class="container-fluid title">
       <div class="row">
-        
-        <div class="col-sm">
-      <h2>tasks pending approval</h2>
-
-      {% if pendingTasks == [] %}
-      no pending tasks
-      {% else %}
-        <table>
-          <tr>
-            <th>task name</th>
-            <th>points</th>
-            <th>user</th>
-            <th>frequency</hd>
-            <th> </th> 
-            <th> </th> 
-          </tr>
-
-          {% for task in pendingTasks %}
-          <tr>
-            <td>{{task.taskName}}</td>
-            <td>{{task.points}}</td>
-            <td>{{task.assignedUsername}}</td>
-            {% if task.frequency == '1' %}
-              <td>every day</td>
-            {% else %}
-              <td>every {{task.frequency}} days</td> 
-            {% endif %}
-            <td><a href = "admin/approveTask/{{task.taskID}}">approve</a></td>
-            <td><a href = "admin/denyTask/{{task.taskID}}">deny</a></td>
-          </tr>
-          {% endfor %}
-        </table>
-      {% endif %}
+      <h1> hello, {{ displayName }}! welcome to your home dashboard!</h1>
+      </div>
+    </div>  
       <br>
-      <h2>all active tasks</h2>
-      {% if allTasks == [] %}
-      no tasks
-      {% else %}
+
+    <div class="container-fluid users">
+      <div class="row">
+        <div class="col-sm-4">
+          <h2>people in {{ home }}</h2>
           <table>
             <tr>
-              <th>task name</th>
+              <th>name</th>
               <th>points</th>
-              <th>user</th>
-              <th>frequency</th>
-              <th>due date</th>
-              <th> </th>
-
+              <th>administer</th>
             </tr>
-
-            {% for task in allTasks %}
+            {% for user in allUsers %}
             <tr>
-              <td>{{task.taskName}}</td>
-              <td>{{task.points}}</td>
-              <td>{{task.assignedUsername}}</td>
-              {% if task.frequency == '1' %}
-                <td>every day</td>
+              <td>{{ user.displayName }}
+                {% if user.admin == 1 %}
+                <img src="{{url_for('static', filename='crown.png')}}">
+                {% endif %}
+              </td>
+              <td>{{ user.points }}</td>
+              {% if user.userID == adminUser.userID %}
+                <td><a href="self">dashboard</a></td>
               {% else %}
-                <td>every {{task.frequency}} days</td> 
+                <td><a href="admin/{{user.userID}}">dashboard</a></td>
               {% endif %}
-              <td>{{task.dueDate}}</td>
-              <td><a href="admin/deleteTask/{{task.taskID}}">delete</a></td>
             </tr>
             {% endfor %}
           </table>
-        {% endif %}
-      <br>
-      <a href="admin/newtask">new task</a>
+          <br>
+        </div> 
+        <br>
       </div>
-      <div class="col-sm">
+    </div>
+    <br>
+    <br>  
+
+
+  <div class="container-fluid tasks-and-rewards">     
+      <div class="row">
+        <div class="col-sm-4">
+          <h2>tasks pending approval</h2>
+
+          {% if pendingTasks == [] %}
+          no pending tasks
+          {% else %}
+          <div class="table-responsive">
+            <table>
+              <thead>
+              <tr>
+                <th>task name</th>
+                <th>points</th>
+                <th>user</th>
+                <th>frequency</hd>
+                <th> </th> 
+                <th> </th> 
+              </tr>
+              </thead>
+              <tbody>
+              {% for task in pendingTasks %}
+              <tr>
+                <td>{{task.taskName}}</td>
+                <td>{{task.points}}</td>
+                <td>{{task.assignedUsername}}</td>
+                {% if task.frequency == '1' %}
+                  <td>every day</td>
+                {% else %}
+                  <td>every {{task.frequency}} days</td> 
+                {% endif %}
+                <td><a href = "admin/approveTask/{{task.taskID}}">approve</a></td>
+                <td><a href = "admin/denyTask/{{task.taskID}}">deny</a></td>
+              </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+            </div>
+          {% endif %}
+            <h2>all active tasks</h2>
+        {% if allTasks == [] %}
+        no tasks
+        {% else %}
+        <div class="table-responsive">
+            <table>
+              <tr>
+                <th>task name</th>
+                <th>points</th>
+                <th>user</th>
+                <th>frequency</th>
+                <th>due date</th>
+                <th> </th>
+
+              </tr>
+
+              {% for task in allTasks %}
+              <tr>
+                <td>{{task.taskName}}</td>
+                <td>{{task.points}}</td>
+                <td>{{task.assignedUsername}}</td>
+                {% if task.frequency == '1' %}
+                  <td>every day</td>
+                {% elif task.frequency == '0' %}
+                  <td>none</td>
+                {% else %}
+                  <td>every {{task.frequency}} days</td> 
+                {% endif %}
+
+                {% if task.dueDate.strftime('%Y-%m-%d') == '3000-01-01' %}
+                  <td>permanent</td>
+                {% else %}
+                    <td>{{task.dueDate}}</td>
+                {% endif %}
+
+                <td><a href="admin/deleteTask/{{task.taskID}}">delete</a></td>
+              </tr>
+              {% endfor %}
+            </table>
+            </div>
+          {% endif %}
+          <br>
+          
+      </div>
+<br>
+      <div class="col-sm-4">
         <h2>rewards pending approval</h2>
         {% if pendingRewards == [] %}
         no pending rewards
         {% else %}
+        <div class="table-responsive">
           <table>
             <tr>
               <th>reward name</th>
@@ -102,12 +160,14 @@
             </tr>
             {% endfor %}
           </table>
+        </div>
         {% endif %}
         <br>
         <h2>all active rewards</h2>
         {% if allRewards == [] %}
         no rewards
         {% else %}
+        <div class="table-responsive">
           <table>
             <tr>
               <th>reward name</th>
@@ -122,38 +182,26 @@
             {% endfor %}
           </tr>
           </table>
+          </div>
           {% endif %}
         <br>
-        <a href="admin/newreward">new reward</a>
-        </div>
+        
       </div>
-      <div class="row">
-        <div class="col-sm">
-          <h2>all users</h2>
-        <br>
-        <table>
-          <tr>
-            <th>username</th>
-            <th>points</th>
-            <th>is admin?</th>
-            <th>approval required?</hd>
-          </tr>
-          {% for user in allUsers %}
-          <tr>
-            <td>{{ user.username }}</td>
-            <td>{{ user.points }}</td>
-            <td>{{ user.admin }}</td>
-            <td>{{ user.approvalRequired }}</td>
-          </tr>
-          {% endfor %}
-        </table>
-        </div>
-      </div>
+      
+    </div>
     <br>
+    <!--
+    <div class="row">
+          <div class="col-sm-4">
+            <h2><a href="admin/newtask">new task</a></h2>
+            
+          </div>
+          <div class="col-sm-4">
+            <h2><a href="admin/newreward">new reward</a></h2>
+          </div>
       </div>
-  <div class="container">
-      <h2><a href="self">do your own tasks</a></h2>
-   </div>
+    -->
+    <br>
   </div>
   </body>
 </html>

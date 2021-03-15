@@ -1,0 +1,207 @@
+<html>
+  <head>
+    <title>chorepoint</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans&family=Raleway:wght@300&display=swap" rel="stylesheet"> 
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    <link href="{{ url_for('static', filename='css/main.css') }}" rel="stylesheet">
+  </head>
+  <body>
+
+    <div class="container-fluid title">
+        <div class="row">
+             <h1> {{ user.displayName }} has {{ user.points }} points. </h1> 
+                
+        </div>
+    </div>
+    <div class="container-fluid">
+        <div class="row">
+                <h3><a href="/admin/addpoints/{{user.userID}}">add bonus points</a> | <a href="/admin/subtractpoints/{{user.userID}}">subtract points</a></h3>
+        </div>
+    </div>
+    <br>
+    <div class="container-fluid tasks">
+        <div class="row">
+            <div class="col-sm-4">
+              <h2>{{ user.displayName }}'s tasks</h2>
+            </div>
+          </div>
+          <br>
+      </div>
+    <div class="container-fluid tasks">
+        <div class="row">
+            <div class="col-sm-4">
+                <h2>tasks pending approval</h2>
+        
+                        {% if pendingTasks == [] %}
+                        no pending tasks
+                        {% else %}
+                        <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                <th>task name</th>
+                                <th>points</th>
+                                <th>user</th>
+                                <th>frequency</hd>
+                                <th> </th> 
+                                <th> </th> 
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for task in pendingTasks %}
+                                <tr>
+                                <td>{{task.taskName}}</td>
+                                <td>{{task.points}}</td>
+                                <td>{{task.assignedUsername}}</td>
+                                {% if task.frequency == '1' %}
+                                    <td>every day</td>
+                                {% elif task.frequency == '0' %}
+                                    <td>none</td>
+                                {% else %}
+                                    <td>every {{task.frequency}} days</td> 
+                                {% endif %}
+                                <td><a href = "/admin/approveTask/{{task.taskID}}">approve</a></td>
+                                <td><a href = "/admin/denyTask/{{task.taskID}}">deny</a></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        </div>
+                        {% endif %}
+                        
+            </div> 
+
+            <div class="col-sm-4">
+                <h2>all active tasks</h2>
+                {% if allTasks == [] %}
+                no tasks
+                {% else %}
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>task name</th>
+                                <th>points</th>
+                                <th>user</th>
+                                <th>frequency</th>
+                                <th>due date</th>
+                                <th> </th>
+                
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in allTasks %}
+                            <tr>
+                                <td>{{task.taskName}}</td>
+                                <td>{{task.points}}</td>
+                                <td>{{task.assignedUsername}}</td>
+                                {% if task.frequency == '1' %}
+                                    <td>every day</td>
+                                {% elif task.frequency == '0' %}
+                                    <td>none</td>
+                                {% else %}
+                                    <td>every {{task.frequency}} days</td> 
+                                {% endif %}
+
+                                {% if task.dueDate.strftime('%Y-%m-%d') == '3000-01-01' %}
+                                <td>permanent</td>
+                                {% else %}
+                                    <td>{{task.dueDate}}</td>
+                                {% endif %}
+                                <td><a href="/admin/deleteTask/{{task.taskID}}">delete</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    </div>
+                {% endif %}
+                
+            </div>
+        </div> 
+        <br>
+    </div>
+    <div class="container-fluid tasks">
+        <div class="row">
+            <div class="col-sm-4">
+              <h2>{{ user.displayName }}'s rewards</h2>
+            </div>
+          </div>
+          <br>
+      </div>
+    <div class="container-fluid rewards">
+        <div class="row">
+            <div class="col-sm-4">
+                <h2>rewards pending approval</h2>
+                {% if pendingRewards == [] %}
+                no pending rewards
+                {% else %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>reward name</th>
+                                <th>points</th>
+                                <th> </th>
+                                <th> </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reward in pendingRewards %}
+                            <tr>
+                                <td>{{reward.rewardName}}</td>
+                                <td>{{reward.points}}</td>
+                                <td><a href="/admin/approveReward/{{reward.rewardID}}">approve</a></td>
+                                <td><a href = "/admin/denyReward/{{reward.rewardID}}">deny</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="col-sm-4">
+                <h2>all active rewards</h2>
+                {% if allRewards == [] %}
+                no rewards
+                {% else %}
+                <div class="table-responsive">
+                    <table>
+                    <thead>
+                        <tr>
+                            <th>reward name</th>
+                            <th>points</th>
+                            <th> </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reward in allRewards %}
+                        <tr>
+                            <td>{{reward.rewardName}}</td>
+                            <td>{{reward.points}}</td>
+                            <td><a href="/admin/deleteReward/{{reward.rewardID}}">delete</a></td>
+                        {% endfor %}
+                        </tr>
+                    </tbody>
+                    </table>
+                    </div>
+                    {% endif %}
+
+            </div>
+        </div>
+    </div>
+<br>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-sm-4">
+                <h2><a href="/admin/newtask">new task</a></h2>
+            </div>
+            <div class="col-sm-4">
+                <h2><a href="/admin/newreward">new reward</a></h2>
+            </div>
+        </div>
+    </div>

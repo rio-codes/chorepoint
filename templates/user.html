@@ -2,168 +2,216 @@
   <head>
     <title>chorepoint</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="{{ url_for('static', filename='css/main.css')}}" rel="stylesheet" media="screen">
-    <link href="{{ url_for('static', filename='css/bootstrap.min.css')}}" rel="stylesheet" media="screen">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans&family=Raleway:wght@300&display=swap" rel="stylesheet"> 
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    <link href="{{ url_for('static', filename='css/main.css') }}" rel="stylesheet">
   </head>
   <body>
-    <div class="container">
-      <h1>chorepoint user dashboard</h1>
-      <h2>hello, {{ username }}. You have {{ points }} points.</h2>
-      <br>
-      <h2>your tasks</h2>
+    <div class="container-fluid title">
       <div class="row">
-        <div class="col-sm">
-      <h3>to do today:</h3>
-        {% if userActiveTasks == [] %}
-        no tasks
-        {% else %}
-            <table>
-              <tr>
-                <th>task name</th>
-                <th>points</th>
-                <th> </th>
-              </tr>
-  
-              {% for task in userActiveTasks %}
-              <tr>
-                <td>{{task.taskName}}</td>
-                <td>{{task.points}}</td>
-                <td><a href="user/submitTask/{{task.taskID}}">submit</a></td>
-              </tr>
-              {% endfor %}
-            </table>
-          {% endif %}
-          <br>
-      <h3>upcoming:</h3>
-      {% if userUpcomingTasks == [] %}
-      no tasks
-      {% else %}
-          <table>
-            <tr>
-              <th>task name</th>
-              <th>points</th>
-              <th>due date</th>
-              <th> </th>
-            </tr>
-
-            {% for task in userUpcomingTasks %}
-            <tr>
-              <td>{{task.taskName}}</td>
-              <td>{{task.points}}</td>
-              <td>{{task.dueDate}}</td>
-            </tr>
-            {% endfor %}
-          </table>
-        {% endif %}
+      <h2>hello, {{ username }}. you have {{ points }} points.</h2>
       <br>
       </div>
-      <div class="col-sm">
+    </div>
+    <br>
+
+    <div class="container-fluid tasks">
+      <div class="row">
+        <div class="col-sm-4">
+          <h2>your tasks</h2>
+          </div>
+      </div>
+    </div>
+    <br>
+
+    <div class="container-fluid tasks">
+      <div class="row">
+        <div class="col-sm-4">
+          <h3>to do today:</h3>
+            {% if userActiveTasks == [] %}
+            no tasks
+            {% else %}
+                <table>
+                  <tr>
+                    <th>task name</th>
+                    <th>points</th>
+                    <th> </th>
+                  </tr>
+      
+                  {% for task in userActiveTasks %}
+                  <tr>
+                    <td>{{task.taskName}}</td>
+                    <td>{{task.points}}</td>
+                    <td><a href="user/submitTask/{{task.taskID}}">submit</a></td>
+                  </tr>
+                  {% endfor %}
+                </table>
+              {% endif %}
+              <br>
+              <h3>upcoming:</h3>
+              {% if userUpcomingTasks == [] %}
+              no tasks
+              {% else %}
+                  <table>
+                      <thead>
+                      <tr>
+                        <th>task name</th>
+                        <th>points</th>
+                        <th>due date</th>
+                        <th> </th>
+                      </tr>
+                      </thead>
+                    <tbody>
+                      {% for task in userUpcomingTasks %}
+                      <tr>
+                        <td>{{task.taskName}}</td>
+                        <td>{{task.points}}</td>
+                        {% if task.dueDate.strftime('%Y-%m-%d') == '3000-01-01' %}
+                        <td>permanent</td>
+                        {% else %}
+                            <td>{{task.dueDate}}</td>
+                        {% endif %}
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                {% endif %}
+      <br>
+      </div>
+
+      <div class="col-sm-4">
         <h3>pending:</h3>
         {% if userPendingTasks == [] %}
         no tasks
         {% else %}
             <table>
-              <tr>
-                <th>task name</th>
-                <th>points</th>
-              </tr>
-  
-              {% for task in userPendingTasks %}
-              <tr>
-                <td>{{task.taskName}}</td>
-                <td>{{task.points}}</td>
-              </tr>
-              {% endfor %}
+              <thead>
+                <tr>
+                  <th>task name</th>
+                  <th>points</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for task in userPendingTasks %}
+                <tr>
+                  <td>{{task.taskName}}</td>
+                  <td>{{task.points}}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
             </table>
           {% endif %}
         <br>
-        </div>
-        <div class="col-sm">
-          <h3>complete:</h3>
+          <h3>completed today:</h3>
           {% if userCompletedTasks == [] %}
           no tasks
           {% else %}
             <table>
-              <tr>
-                <th>task name</th>
-                <th>points</th>
-                 <th>completed date</th>
-              </tr>
-  
+              <thead>
+                <tr>
+                  <th>task name</th>
+                  <th>points</th>
+                  <th>completed date</th>
+                </tr>
+              </thead>
+              <tbody>
               {% for task in userCompletedTasks %}
-              <tr>
-                <td>{{task.taskName}}</td>
-                <td>{{task.points}}</td>
-                <td>{{task.dateCompleted}}</td>
-              </tr>
+                <tr>
+                  <td>{{task.taskName}}</td>
+                  <td>{{task.points}}</td>
+                  <td>{{task.dateCompleted}}</td>
+                </tr>
               {% endfor %}
+              </tbody>
             </table>
           {% endif %}
           <br>
           </div>
     </div>
-    <h2>your rewards</h2>
+    <br>
+  </div>
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-sm-4">
+          <h2>your rewards</h2>
+        </div>
+      </div>
+    </div>
+    <br>
+    <div class="container-fluid">
     <div class="row">
-      <div class="col-sm">
+      <div class="col-sm-4">
         <h3>available:</h3>
         {% if userAvailableRewards == [] %}
           no rewards
           {% else %}
             <table>
-              <tr>
-                <th>reward name</th>
-                <th>points</th>
-                <th> </th>
-              </tr>
-  
-              {% for reward in userAvailableRewards %}
-              <tr>
-                <td>{{reward.rewardName}}</td>
-                <td>{{reward.points}}</td>
-                <td><a href="/user/redeem/{{reward.rewardID}}">redeem</a></td>
-              </tr>
-              {% endfor %}
+              <thead>
+                <tr>
+                  <th>reward name</th>
+                  <th>points</th>
+                  <th> </th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for reward in userAvailableRewards %}
+                <tr>
+                  <td>{{reward.rewardName}}</td>
+                  <td>{{reward.points}}</td>
+                  <td><a href="/user/redeem/{{reward.rewardID}}">redeem</a></td>
+                </tr>
+                {% endfor %}
+              </tbody>
             </table>
           {% endif %}
-      </div>
-      <div class="col-sm">
+            <br>
         <h3>pending:</h3>
         {% if userPendingRewards == [] %}
         no rewards
         {% else %}
           <table>
+            <thead>
             <tr>
               <th>reward name</th>
               <th>points</th>
             </tr>
-
-            {% for reward in userPendingRewards %}
-            <tr>
-              <td>{{reward.rewardName}}</td>
-              <td>{{reward.points}}</td>
-            </tr>
-            {% endfor %}
+            </thead>
+            <tbody>
+              {% for reward in userPendingRewards %}
+              <tr>
+                <td>{{reward.rewardName}}</td>
+                <td>{{reward.points}}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
           </table>
-          {% endif %}
+        {% endif %}
       </div>
 
-      <div class="col-sm">
+      <div class="col-sm-4">
         <h3>redeemed:</h3>
         {% if userRedeemedRewards == [] %}
         no rewards
         {% else %}
           <table>
+            <thead>
             <tr>
               <th>reward name</th>
               <th>points</th>
             </tr>
-
-            {% for reward in userRedeemedRewards %}
-            <tr>
-              <td>{{reward.rewardName}}</td>
-              <td>{{reward.points}}</td>
-            </tr>
-            {% endfor %}
+            </thead>
+            <tbody>
+              {% for reward in userRedeemedRewards %}
+              <tr>
+                <td>{{reward.rewardName}}</td>
+                <td>{{reward.points}}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
           </table>
         {% endif %}
       </div>

@@ -1,8 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, flash, render_template, request, redirect, url_for, session
 from flask_login import current_user, logout_user, LoginManager, login_user, login_required
 from flask_mysqldb import MySQL
 from datetime import datetime, timedelta
-from MySQLdb import escape_string as thwart
 import hashlib, random, string
 import oak as cfg
 
@@ -80,7 +79,7 @@ class Task(object):
         dateString = "%Y-%m-%d"   
 
         # set and format due date based on frequency
-        dueDate = currentDate + timedelta(int(thisTask.frequency))
+        dueDate = thisTask.dueDate + timedelta(int(thisTask.frequency))
         formattedDueDate = str(dueDate.strftime('%Y-%m-%d'))
 
         # intialize sql cursor
@@ -307,7 +306,7 @@ class User(object):
         cur = mysql.connection.cursor()
 
         # get userIDs for homeID
-        cur.execute("SELECT userID FROM users WHERE homeID=%s", h)
+        cur.execute("SELECT userID FROM users WHERE homeID=%s AND is_active=1", h)
 
         # return userIDs
         users = cur.fetchall()
@@ -325,6 +324,24 @@ class User(object):
 
         # generate new point total
         newPoints = currentPoints + int(points)
+
+        # add points to user
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE users SET points=%s WHERE userID=%s" % (newPoints, userID))
+        mysql.connection.commit()
+
+    def subtract_points(userID, points):
+
+        # initialize user variable and sql cursor
+        u = str(userID)
+        cur = mysql.connection.cursor()
+        
+        # get current points for selected user
+        cur.execute("SELECT points FROM users WHERE userID=%s", u)
+        currentPoints = (cur.fetchall()[0])[0]
+
+        # generate new point total
+        newPoints = currentPoints - int(points)
 
         # add points to user
         cur = mysql.connection.cursor()
@@ -377,6 +394,49 @@ class User(object):
         cur.execute("INSERT INTO users (userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID) VALUES (%s, '%s', '%s', 0, '%s', 1, 0, %s)" % (newUserID, username, displayName, pw_hash, homeID))
         mysql.connection.commit()
 
+    def change_password(userID, pw_hash):
+
+        print(pw_hash)
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE users SET passwordHash='%s' WHERE userID = %s" % (pw_hash, userID))
+        mysql.connection.commit()
+
+    def promote_user(userID, newUsername):
+
+        # get current user object and home object
+        user = User.get_user(userID)
+        home = Home.get_home_from_homeID(user.homeID)
+
+        # create new user with admin status and no approval required and get user object
+        User.create_new_user(newUsername, user.displayName, home.homeName, user.passwordHash)
+        newUserID = User.get_userID_from_username(newUsername)
+        newUser = User.get_user(newUserID)
+
+        # get new homeID
+        newHome = Home.get_home_from_homeID(newUser.homeID)
+
+        # change all tasks to new user and homeID
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE tasks SET assignedUserID=%s, homeID=%s WHERE assignedUserID = %s" % (newUserID, newHome.homeID, user.userID))
+        mysql.connection.commit()
+        
+        # set all active tasks to uncompleted
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE tasks SET approved=0 WHERE assignedUserID = %s AND active=1" % (newUserID))
+        mysql.connection.commit()
+
+        # change all rewards to new user and homeID
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE rewards SET assignedUserID=%s, homeID=%s WHERE assignedUserID = %s" % (newUserID, newHome.homeID, user.userID))
+        mysql.connection.commit()
+
+        # deactivate old user
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE users SET is_authenticated=0, is_active=0 WHERE userID = %s" % (user.userID))
+        mysql.connection.commit()
+
+
+
 class Home(object):
     def __init__(self, homeID, homeName, adminUserID):
         self.homeID = homeID
@@ -405,6 +465,28 @@ class Home(object):
         self.inviteLink = home[0]['inviteLink']
         return self
     
+    @classmethod
+
+    def get_home_from_homeID(self, homeID):
+
+        # initialize homeID variable and mysql cursor    
+        h = (homeID,)
+        cur = mysql.connection.cursor()
+
+        # get home for admin user
+        cur.execute("SELECT * FROM homes WHERE homeID=%s", h)
+        columns = [col[0] for col in cur.description]
+        home = [dict(zip(columns, row)) for row in cur.fetchall()]
+        print(home)
+
+        # return home object
+        self.homeID = home[0]['homeID'] 
+        self.homeName = home[0]['homeName']
+        self.adminUserID = home[0]['adminUserID']
+        self.inviteLink = home[0]['inviteLink']
+
+        return self
+
     def generate_invite_link():
 
         randomString = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(10))
@@ -797,6 +879,7 @@ def user():
     # get tasks for current user
     userTasks = []
     userTasksTuple = Task.get_user_tasks(user.userID)
+    print(userTasksTuple)
 
     for a in range(len(userTasksTuple)):
         userTasks.append(int(((userTasksTuple[a])[0])))
@@ -830,6 +913,8 @@ def user():
             userCompletedTasks.append(thisTask)
         elif thisTask.approved == 0  and thisTask.active == 1 and thisTask.dueDate > currentDate:
             userUpcomingTasks.append(thisTask)
+
+    print(userTasks)
 
     # get rewards for current user
     userRewards = []    
@@ -1258,6 +1343,124 @@ def adminInvite():
 
     #display invite page
     return render_template('admininvite.html', home=home)
+
+@login_required
+@app.route('/admin/addpoints/<userID>', methods=["GET", "POST"])
+def addUserPoints(userID):
+
+    user = User.get_user(userID)
+    error = None
+
+    if request.method == "POST":
+
+        # get points to add from form
+        error = None
+        points = request.form['points']
+
+        if int(points) > 10000:
+            error = "you can't add that many points."
+            return render_template('addpoints.html', error=error)
+        else:
+            User.add_points(userID, points)
+            return redirect('/admin/' + userID)
+    
+    if request.method == "GET":     
+        # display add points page
+        return render_template('addpoints.html', user=user, error=error)
+
+@login_required
+@app.route('/admin/subtractpoints/<userID>', methods=["GET", "POST"])
+def subtractUserPoints(userID):
+
+    user = User.get_user(userID)
+    error = None
+
+    if request.method == "POST":
+
+        # get points to subtract from form
+        error = None
+        points = request.form['points']
+
+        if int(points) > user.points:
+            error = "you can't subtract more points than they have."
+            return render_template('subtractpoints.html', user=user, error=error)
+
+        else:
+            User.subtract_points(userID, points)
+            return redirect('/admin/' + userID)
+    
+    if request.method == "GET":     
+        # display subtract points page
+        return render_template('subtractpoints.html', user=user, error=error)
+
+@login_required
+@app.route('/admin/resetpassword/<userID>', methods=["GET", "POST"])
+def resetPassword(userID):
+
+    s = cfg.salt
+    user = User.get_user(userID)
+    error = None
+
+    if request.method == "POST":
+        password = request.form['password']
+        confirm = request.form['confirm']
+
+        if password != confirm:
+            error = 'Passwords do not match.'
+            return render_template('resetpassword.html', user=user, error=error)
+
+        else:
+            cur = mysql.connection.cursor()
+            u = (user.username,)
+            cur.execute("SELECT * FROM users WHERE username = %s", u)
+            isUser = cur.fetchall()
+
+            pw = (s + password).encode()
+            pw_hash = hashlib.sha512(pw).hexdigest()
+
+            print (pw_hash)
+
+            User.change_password(userID, pw_hash)
+
+            flash("Password was changed.")
+            return redirect('/admin/' + userID)
+
+    if request.method == "GET":     
+        # display reset password page
+        return render_template('resetpassword.html', user=user, error=error)
+
+@login_required
+@app.route('/admin/promoteuser/<userID>', methods=["GET", "POST"])
+def promoteUser(userID):
+
+    user = User.get_user(userID)
+    error = None
+
+    if request.method == "POST":
+
+        error = None
+        newUsername = request.form['username']
+
+        cur = mysql.connection.cursor()
+        u = (newUsername,)
+        cur.execute("SELECT * FROM users WHERE username = %s", u)
+        isUser = cur.fetchall()
+        if isUser == True:
+            error = 'That username is taken'
+            return render_template('promoteuser.html', user=user, error=error)
+        else:
+            User.promote_user(userID, newUsername)
+            return redirect('/admin')
+    
+    if request.method == "GET":
+
+        # display promote user page
+        return render_template('promoteuser.html', user=user, error=error)
+
+#@login_required
+#@app.route('/admin/deleteuser/<userID>', methods=["GET", "POST"])
+#def deleteUser(userID):
+
 
 if __name__ == "__main__":
     app.config['TRAP_BAD_REQUEST_ERRORS'] = True

@@ -1,6 +1,6 @@
 <html>
   <head>
-    <title>new task</title>
+    <title>chorepoint</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="{{ url_for('static', filename='css/main.css')}}" rel="stylesheet" media="screen">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
@@ -8,17 +8,16 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
-
   </head>
   <body>
-    <div class="container-fluid">
-    <div class="container">
+    <div class="container-fluid title">
+      <div class="col-sm-12 col-lg-12">
       <h1>new task</h1>
-      <br>
-      <form action="" method="post">       
-<div class ="row">
-        <div class="col-sm-4">
-          <div class="flex-container">
+      </div>
+      <div class="col-sm-12 col-lg-3">
+      <div class="container-fluid">
+      <form action="" method="post">
+
               <div class="collapse permanent-frequency-dueDate show" id="permanent">                
                 <input type="checkbox" name="permanent" value="1" id="permanent" class="form-control-plaintext" data-toggle="collapse" data-target=".oneOff-frequency">
                 <label for="permanent">permanent</label>
@@ -27,14 +26,13 @@
                 <input type="checkbox" class="form-control-plaintext" data-toggle="collapse" data-target=".permanent-frequency-dueDate" name="oneOff" value="1">
                 <label for="oneOff">never repeats (set due date)</label>
               </div>
-              <div class="flex-container">
+
+              <br>
+
               <label for="taskName">task name:</label>
               <input type="text" class="form-control-plaintext fill-width" placeholder="task name" name="taskName" value="{{request.form.taskName }}"> <br>
-              </div>
-              <div class="flex-container">
                 <label for="points">points:</label>  
                 <input type="text" class="form-control-plaintext fill-width" placeholder="points" name="points" value="{{request.form.points }}"> <br>
-              </div>
             <div class="flex-container collapse permanent-frequency-dueDate oneOff-frequency show" id="frequency">
               <label for="frequency">frequency in days:</label>
               <input type="text" class="form-control-plaintext fill-width" data-toggle="collapse" placeholder="frequency in days" name="frequency" value="{{request.form.frequency }}"><br>
@@ -54,24 +52,14 @@
               <label for="dueDate">due date:</label>
               <input type="text" class="form-control-plaintext fill-width" name="dueDate" data-provide="datepicker" value="{{request.form.dueDate}}" data-date-format="yyyy-mm-dd" data-date-autoclose=true data-toggle="collapse"/>
               <br>
+    
             </div>
-            <input class="btn btn-default" type="submit" value="Create">
+            <input class="btn btn-default" type="submit" value="Create"><br>
+            * a permanent task has no due date and never goes away, allowing you to submit it multiple times a day.
             </div>
-        </div>
-</div>
+            <br>
+            </div>
 <br>
-        <div class="row">
-          <div class="col-sm-4">
-        * a permanent task has no due date and never goes away, allowing you to submit it multiple times a day.
-        </div>
-        </div>
-      </form>
-      {% if error %}
-        <p class="error">{{ error }}
-      {% endif %}
     </div>
-    
-    </div>
-    
   </body>
 </html>

@@ -1,6 +1,6 @@
 <html>
   <head>
-    <title>new reward</title>
+    <title>chorepoint</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="{{ url_for('static', filename='css/main.css')}}" rel="stylesheet" media="screen">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
@@ -10,11 +10,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
   </head>
   <body>
-    <div class="container">
-        
+    <div class="container-fluid title">
+      <div class="col-sm-12 col-lg-12">
       <h1>new reward</h1>
-      <br>
-      <div class="col-sm-4">
+      </div>
+      </div>
+        <div class="container-fluid">
         <div class="form">
       <form action="" method="post">
         <label for="rewardName">reward name:</label>
@@ -26,7 +27,6 @@
         <input class="btn btn-default" type="submit" value="Create">
         </div>
       </form>
-      </div>
       </div>
   </body>
 </html>

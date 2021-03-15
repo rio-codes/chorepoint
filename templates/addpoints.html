@@ -1,6 +1,6 @@
 <html>
   <head>
-    <title>login page</title>
+    <title>chorepoint</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="{{ url_for('static', filename='css/main.css')}}" rel="stylesheet" media="screen">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
@@ -12,14 +12,12 @@
   <body>
     <div class="container-fluid title">
       <div class="col-sm-12 col-sm-6">
-      <h1>login and let's get started!</h1>
+      <h1>how many points do you want to give {{ user.displayName }}?</h1>
       <br>
       <form action="" method="post">
-        <input type="text" placeholder="Username" name="username" value="{{
-          request.form.username }}">
-         <input type="password" placeholder="Password" name="password" value="{{
-          request.form.password }}">
-        <input class="btn btn-default" type="submit" value="Login">
+        <input type="text" placeholder="Points" name="points" value="{{
+          request.form.points }}">
+        <input class="btn btn-default" type="submit" value="Submit">
       </form>
       {% if error %}
         <p class="error"><strong>Error:</strong> {{ error }}
@@ -27,7 +25,7 @@
         </div>
     </div>
     <div class="container-fluid">
-      <h4><a href="forgotpassword">I forgot my password...</a></h4>
+      <h4>a little treat...</h4>
       </div>
   </body>
 </html>

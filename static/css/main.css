@@ -376,7 +376,7 @@ td
     body {
         font-family: 'DM Sans', sans-serif;
     }
-    
+
     .container {
         display:flex;
         flex-wrap: nowrap;
@@ -475,8 +475,8 @@ td
     }
 
     .container {
-        display:flex;
-        flex-wrap: nowrap;
+        /* display:flex;
+        flex-wrap: nowrap; */
     }
 
     .container.options {

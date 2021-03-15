@@ -18,27 +18,32 @@
                 
         </div>
     </div>
-    <div class="container-fluid">
-        <div class="row">
-                <h3><a href="/admin/addpoints/{{user.userID}}">add bonus points</a> | <a href="/admin/subtractpoints/{{user.userID}}">subtract points</a> | <a href="/admin/resetpassword/{{user.userID}}">reset password</a> | <a href="/admin/promoteuser/{{user.userID}}">promote to admin</a> | <a href="/admin/deleteuser/{{user.userID}}">delete user</a></h3>
+    <div class="container options">
+        <div class="row options">
+            <div class="col-lg-6 col-sm-6">
+                <h4><a href="/admin/addpoints/{{user.userID}}">add bonus points</a> | <a href="/admin/subtractpoints/{{user.userID}}">subtract points</a> | <a href="/admin/resetpassword/{{user.userID}}">reset password</a> | <a href="/admin/promoteuser/{{user.userID}}">promote to admin</a> | <a href="/admin/deleteuser/{{user.userID}}">delete user</a></h4>
+                </div>
         </div>
     </div>
     <br>
-    <div class="container-fluid subtitle">
+    <div class="container subtitle">
         <div class="row">
-            <div class="col-sm-4">
+            <div class="col-lg-6 col-sm-12">
               <h2>{{ user.displayName }}'s tasks</h2>
             </div>
           </div>
           <br>
       </div>
-    <div class="container-fluid tables tasks">
+
+    <div class="container tasks">
         <div class="row">
-            <div class="col-sm-4">
+            <div class="col-lg-6 col-sm-12">
                 <h2>tasks pending approval</h2>
         
                         {% if pendingTasks == [] %}
+                        <div class="table-responsive">
                         no pending tasks
+                        </div>
                         {% else %}
                         <div class="table-responsive">
                         <table>
@@ -73,15 +78,16 @@
                         </table>
                         </div>
                         {% endif %}
-                        
-            </div> 
-
-            <div class="col-sm-4">
+                  <br>      
+            </div>
+            <div class="col-lg-6 col-sm-12">
                 <h2>all active tasks</h2>
-                {% if allTasks == [] %}
+                    {% if allTasks == [] %}
+                        <div class="table-responsive">
                 no tasks
-                {% else %}
-                <div class="table-responsive">
+                        </div>
+                    {% else %}
+                        <div class="table-responsive">
                     <table>
                         <thead>
                             <tr>
@@ -118,27 +124,33 @@
                             {% endfor %}
                         </tbody>
                     </table>
-                    </div>
-                {% endif %}
-                
+                        </div>
+                    {% endif %}  
+                    <br>   
             </div>
+
         </div> 
         <br>
     </div>
-    <div class="container-fluid subtitle">
+    <br>
+
+    <div class="container subtitle">
         <div class="row">
-            <div class="col-sm-4">
+            <div class="col-lg-6 col-sm-12">
               <h2>{{ user.displayName }}'s rewards</h2>
             </div>
           </div>
           <br>
       </div>
-    <div class="container-fluid tables rewards">
-        <div class="row">
-            <div class="col-sm-4">
+
+    <div class="container rewards">
+        <div class="row justify-content-md-center">
+            <div class="col-lg-6 col-sm-12">
                 <h2>rewards pending approval</h2>
                 {% if pendingRewards == [] %}
+                <div class="table-responsive">
                 no pending rewards
+                </div>
                 {% else %}
                 <div class="table-responsive">
                     <table class="table table-sm">
@@ -163,11 +175,15 @@
                     </table>
                     </div>
                 {% endif %}
+                <br>
             </div>
-            <div class="col-sm-4">
+           
+            <div class="col-lg-6 col-sm-12">
                 <h2>all active rewards</h2>
                 {% if allRewards == [] %}
+                <div class="table-responsive">
                 no rewards
+                </div>
                 {% else %}
                 <div class="table-responsive">
                     <table>
@@ -190,18 +206,15 @@
                     </table>
                     </div>
                     {% endif %}
-
+<br>
             </div>
         </div>
     </div>
 <br>
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-sm-4">
-                <h2><a href="/admin/newtask">new task</a></h2>
-            </div>
-            <div class="col-sm-4">
-                <h2><a href="/admin/newreward">new reward</a></h2>
-            </div>
+    <div class="container options">
+        <div class="row options">
+            <div class="col-lg-6 col-sm-6">
+                <h3><a href="/admin/newtask">new task</a> | <a href="/admin/newreward">new reward</a></h3>
+                </div>
         </div>
     </div>

@@ -20,11 +20,11 @@
     </div>
     <div class="container-fluid">
         <div class="row">
-                <h3><a href="/admin/addpoints/{{user.userID}}">add bonus points</a> | <a href="/admin/subtractpoints/{{user.userID}}">subtract points</a> | <a href="/admin/resetpassword/{{user.userID}}">reset password</a> | <a href="/admin/deleteuser/{{user.userID}}">delete user</a></h3>
+                <h3><a href="/admin/addpoints/{{user.userID}}">add bonus points</a> | <a href="/admin/subtractpoints/{{user.userID}}">subtract points</a> | <a href="/admin/resetpassword/{{user.userID}}">reset password</a> | <a href="/admin/promoteuser/{{user.userID}}">promote to admin</a> | <a href="/admin/deleteuser/{{user.userID}}">delete user</a></h3>
         </div>
     </div>
     <br>
-    <div class="container-fluid tasks">
+    <div class="container-fluid subtitle">
         <div class="row">
             <div class="col-sm-4">
               <h2>{{ user.displayName }}'s tasks</h2>
@@ -32,7 +32,7 @@
           </div>
           <br>
       </div>
-    <div class="container-fluid tasks">
+    <div class="container-fluid tables tasks">
         <div class="row">
             <div class="col-sm-4">
                 <h2>tasks pending approval</h2>
@@ -125,7 +125,7 @@
         </div> 
         <br>
     </div>
-    <div class="container-fluid tasks">
+    <div class="container-fluid subtitle">
         <div class="row">
             <div class="col-sm-4">
               <h2>{{ user.displayName }}'s rewards</h2>
@@ -133,7 +133,7 @@
           </div>
           <br>
       </div>
-    <div class="container-fluid rewards">
+    <div class="container-fluid tables rewards">
         <div class="row">
             <div class="col-sm-4">
                 <h2>rewards pending approval</h2>

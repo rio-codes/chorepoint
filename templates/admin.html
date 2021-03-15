@@ -39,6 +39,8 @@
               <td>{{ user.points }}</td>
               {% if user.userID == adminUser.userID %}
                 <td><a href="self">dashboard</a></td>
+              {% elif user.approvalRequired == 0 %}
+                <td> </td>
               {% else %}
                 <td><a href="admin/{{user.userID}}">dashboard</a></td>
               {% endif %}
@@ -46,6 +48,7 @@
             {% endfor %}
           </table>
           <br>
+          <a href="{{ url_for('adminInvite') }}">invite</a> someone new to your home!
         </div> 
         <br>
       </div>

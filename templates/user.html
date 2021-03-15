@@ -15,11 +15,14 @@
       <div class="row">
       <h2>hello, {{ username }}. you have {{ points }} points.</h2>
       <br>
-      </div>
+      </div>     
     </div>
     <br>
 
-    <div class="container-fluid tasks">
+    <div class="container-fluid">
+    <h3>{{ ask }}</h3>
+    </div>
+    <div class="container-fluid subtitle">
       <div class="row">
         <div class="col-sm-4">
           <h2>your tasks</h2>
@@ -134,7 +137,7 @@
     </div>
     <br>
   </div>
-    <div class="container-fluid">
+    <div class="container-fluid subtitle">
       <div class="row">
         <div class="col-sm-4">
           <h2>your rewards</h2>
@@ -216,6 +219,7 @@
         {% endif %}
       </div>
     </div>
+    
     </div>
   </body>
 </html>

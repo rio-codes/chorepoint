@@ -8,6 +8,13 @@ body {
     padding-left: 5%;
 }
 
+.container-fluid.subtitle {
+    font:bold;
+    width: 100%;
+    font-size:x-large;
+    color: red;
+}
+
 th {
     font: bold;
     background-color: rgb(195, 210, 224);
@@ -61,9 +68,21 @@ td
     width:100%;
 }
 
+.textarea
+{
+    display:flex;
+    width:100%;
+}
+
 .title
 {
     background-color: #C7AFBD;
+}
+
+.form
+{
+    display:block;
+    max-width: 100%;
 }
 
 @media (max-width: 576px) {
@@ -75,6 +94,19 @@ td
     .container-fluid {
         background-color:l#E7E1E3;
         padding-left: 5%;
+    }
+
+    .container-fluid.subtitle {
+        font:bold;
+        width: 100%;
+        font-size:x-large;
+        color: red;
+    }
+
+    .container-fluid.tables {
+        display: block;
+        width: auto;
+
     }
     
     th {
@@ -124,12 +156,13 @@ td
         background-color:#C7AFBD;
         padding: 30px;
         display:flex;
-        width: 100%;
+        width: auto;
     }
     
     .row
     {
-        display:flex;
+        display:block;
+        width: auto;
     }
     
     .title
@@ -148,24 +181,19 @@ td
     .container-fluid {
         background-color:l#E7E1E3;
         padding-left: 5%;
-        width: 100%;
-        display: flex;
-        flex-wrap: wrap;
     }
 
-    .row {
-        width:100%;
-        display: flex;
-        flex-wrap: wrap;
+    .container-fluid.subtitle {
+        font:bold;
+        width: 100%;
+        font-size:x-large;
+        color: red;
     }
 
-    .col-sm-4
-    {
-        background-color:#C7AFBD;
-        padding: 30px;
-        width: 100%;
+    .container-fluid.tables {
         display: flex;
-        flex-wrap: wrap;
+        width: auto;
+
     }
     
     th {
@@ -177,6 +205,7 @@ td
     table, th, td
     {   
         background-color: #E7E1E3;
+        width:100%;
         padding: 5px;
         overflow-x:auto;
     }
@@ -185,7 +214,7 @@ td
     table tbody, table thead
     {
         width:90%;
-        overflow-x:auto;
+        overflow:auto;
     }
     
     table thead
@@ -207,6 +236,21 @@ td
     td
     {
         width:90%;
+    }
+    
+    .col-sm-4
+    {
+        background-color:#C7AFBD;
+        padding: 30px;
+        display:flex;
+        width: auto;
+    }
+    
+    .row
+    {
+        dislay: flex;
+        width: auto;
+        overflow: scroll;
     }
     
     .title

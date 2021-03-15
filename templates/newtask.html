@@ -16,8 +16,9 @@
       <h1>new task</h1>
       <br>
       <form action="" method="post">       
-
+<div class ="row">
         <div class="col-sm-4">
+          <div class="flex-container">
               <div class="collapse permanent-frequency-dueDate show" id="permanent">                
                 <input type="checkbox" name="permanent" value="1" id="permanent" class="form-control-plaintext" data-toggle="collapse" data-target=".oneOff-frequency">
                 <label for="permanent">permanent</label>
@@ -55,12 +56,22 @@
               <br>
             </div>
             <input class="btn btn-default" type="submit" value="Create">
+            </div>
+        </div>
+</div>
+<br>
+        <div class="row">
+          <div class="col-sm-4">
+        * a permanent task has no due date and never goes away, allowing you to submit it multiple times a day.
+        </div>
         </div>
       </form>
       {% if error %}
         <p class="error">{{ error }}
       {% endif %}
     </div>
+    
     </div>
+    
   </body>
 </html>

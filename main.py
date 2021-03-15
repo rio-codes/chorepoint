@@ -3,7 +3,7 @@ from flask_login import current_user, logout_user, LoginManager, login_user, log
 from flask_mysqldb import MySQL
 from datetime import datetime, timedelta
 from MySQLdb import escape_string as thwart
-import hashlib
+import hashlib, random, string
 import oak as cfg
 
 app = Flask(__name__)
@@ -351,14 +351,30 @@ class User(object):
         lastHomeID = cur.fetchall()[0]
         newHomeID = int((lastHomeID[0])) + 1
 
+        # generate invite link
+        invite = Home.generate_invite_link()
+
         # add new home to database
         cur = mysql.connection.cursor()
-        cur.execute("INSERT INTO homes (homeID, homeName, adminUserID) VALUES (%s, '%s', %s)" % (newHomeID, homeName, newUserID))
+        cur.execute("INSERT INTO homes (homeID, homeName, adminUserID, inviteLink) VALUES (%s, '%s', %s, '%s')" % (newHomeID, homeName, newUserID, invite))
         mysql.connection.commit()
 
         # add new user to database
         cur = mysql.connection.cursor()
         cur.execute("INSERT INTO users (userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID) VALUES (%s, '%s', '%s', 1, '%s', 0, 0, %s)" % (newUserID, username, displayName, pw_hash, newHomeID))
+        mysql.connection.commit()
+    
+    def create_new_invited_user(username, displayName, homeID, pw_hash):
+
+        # get last userID and create new userID
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT userID FROM users ORDER BY userID DESC LIMIT 1")
+        lastUserID = cur.fetchall()[0]
+        newUserID = int((lastUserID[0])) + 1
+
+        # add new user to database
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO users (userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID) VALUES (%s, '%s', '%s', 0, '%s', 1, 0, %s)" % (newUserID, username, displayName, pw_hash, homeID))
         mysql.connection.commit()
 
 class Home(object):
@@ -375,16 +391,24 @@ class Home(object):
         u = (adminUserID,)
         cur = mysql.connection.cursor()
 
+        print(u)
         # get home for admin user
         cur.execute("SELECT * FROM homes WHERE adminUserID=%s", u)
         columns = [col[0] for col in cur.description]
         home = [dict(zip(columns, row)) for row in cur.fetchall()]
+        print(home)
 
         # return home object
         self.homeID = home[0]['homeID'] 
         self.homeName = home[0]['homeName']
         self.adminUserID = adminUserID
+        self.inviteLink = home[0]['inviteLink']
         return self
+    
+    def generate_invite_link():
+
+        randomString = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(10))
+        return(randomString)
 
 @login_manager.user_loader
 def load_user(userID):
@@ -447,7 +471,9 @@ def login():
                 return redirect(url_for('admin'))
             else:
                 return redirect(url_for('user'))
-    if request.method == "GET":     
+
+    if request.method == "GET":
+
         # display login page
         return render_template('login.html', error=error)
 
@@ -730,7 +756,7 @@ def createTask():
 
         print(assignedUserID)
         print(createdByUserID)
-        
+
         if assignedUserID == createdByUserID:
             return redirect(url_for('self'))
         else:
@@ -771,6 +797,7 @@ def user():
     # get tasks for current user
     userTasks = []
     userTasksTuple = Task.get_user_tasks(user.userID)
+
     for a in range(len(userTasksTuple)):
         userTasks.append(int(((userTasksTuple[a])[0])))
 
@@ -825,8 +852,13 @@ def user():
         elif thisReward.approved == 2 and thisReward.active==1: 
             userRedeemedRewards.append(thisReward)
 
+    # prompt user to ask for content if there is none
+    ask = 0
+    if userTasks == [] and userRewards == []:
+        ask = "Ask your admin to assign you tasks and rewards!"
+
     # display user page with resulting output
-    return render_template('user.html', username = user.username, points = user.points, userActiveTasks=userActiveTasks, userPendingTasks=userPendingTasks, userCompletedTasks=userCompletedTasks, userAvailableRewards=userAvailableRewards, userPendingRewards=userPendingRewards, userRedeemedRewards=userRedeemedRewards, userUpcomingTasks=userUpcomingTasks)
+    return render_template('user.html', username = user.username, points = user.points, userActiveTasks=userActiveTasks, userPendingTasks=userPendingTasks, userCompletedTasks=userCompletedTasks, userAvailableRewards=userAvailableRewards, userPendingRewards=userPendingRewards, userRedeemedRewards=userRedeemedRewards, userUpcomingTasks=userUpcomingTasks, ask=ask)
 
 @app.route('/user/redeem/<rewardID>')
 @login_required
@@ -1163,8 +1195,69 @@ def register():
         # display register page
         return render_template('register.html', error=error)
 
+@app.route('/invite/<inviteLink>', methods=["GET", "POST"])
+def inviteRegister(inviteLink):
+    error = None
+    s = cfg.salt
 
+    if request.method == "POST":
 
+        # get home
+        cur = mysql.connection.cursor()
+        i = (inviteLink, )
+        cur.execute("SELECT adminUserID FROM homes WHERE inviteLink = %s", i)
+        adminUserID = (cur.fetchall()[0])[0]
+        home = Home.get_home(adminUserID)
+
+        # get info from form
+        displayName = request.form['displayName']
+        username = request.form['username']
+        password = request.form['password']
+        confirm = request.form['confirm']
+        error = None
+
+        if password != confirm:
+            error = 'Passwords do not match.'
+        else:
+            cur = mysql.connection.cursor()
+            u = (username,)
+            cur.execute("SELECT * FROM users WHERE username = %s", u)
+            isUser = cur.fetchall()
+            print(isUser)
+            if isUser == True:
+                error = 'That username is taken'
+                return render_template('register.html', home=home, error=error)
+            else:
+                pw = (s + password).encode()
+                pw_hash = hashlib.sha512(pw).hexdigest()
+                User.create_new_invited_user(username, displayName, home.homeID, pw_hash)
+                return redirect(url_for('login'))
+
+    if request.method == "GET":
+        # get home
+        cur = mysql.connection.cursor()
+        i = (inviteLink, )
+        cur.execute("SELECT adminUserID FROM homes WHERE inviteLink = %s", i)
+        adminUserID = (cur.fetchall()[0])[0]
+        print(adminUserID)
+        home = Home.get_home(adminUserID)
+        print("home name from object:")     
+        print (home.homeName)
+        user = User.get_user(adminUserID)
+        # display register page
+        return render_template('invite.html', error=error, user=user, home=home)
+
+@login_required
+@app.route('/admin/admininvite', methods=["GET"])
+def adminInvite():
+
+    
+    # get current admin user
+    adminUser = current_user
+    home = Home.get_home(adminUser.userID)
+
+    #display invite page
+    return render_template('admininvite.html', home=home)
 
 if __name__ == "__main__":
     app.config['TRAP_BAD_REQUEST_ERRORS'] = True

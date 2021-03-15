@@ -13,6 +13,7 @@
     <div class="container-fluid">
       <h1>welcome to chorepoint! We just need a little info...</h1>
       <br>
+      <h3>you are joining "{{ home.homeName }}" at the request of {{ user.displayName }}.</h3>
       <form action="" method="post">       
 
         <div class="col-sm-4">
@@ -23,10 +24,6 @@
               <div class="flex-container">
                 <label for="username">your username:</label>  
                 <input type="text" class="form-control-plaintext fill-width" placeholder="username" name="username" value="{{request.form.username }}"> <br>a unique username<br>
-              </div>
-              <div class="flex-container">
-                <label for="homeName">your home name:</label>  
-                <input type="text" class="form-control-plaintext fill-width" placeholder="home name" name="homeName" value="{{request.form.homeName }}"> <br>a home allows you to assign tasks to home members<br>
               </div>
               <div class="flex-container">
                 <label for="password">password:</label>  
@@ -43,9 +40,6 @@
         <p class="error">{{ error }}
       {% endif %}
       </div>
-    </div>
-    <div class="container-fluid">
-    <h4>if you want to join someone else's home, just ask for an invite!</h4>
     </div>
   </body>
 </html>

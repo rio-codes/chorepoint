@@ -186,6 +186,10 @@ td
         background-color: #C7AFBD;
     }
     
+    textarea#invitelink
+    {
+        width: 50%;
+    }
 }
 
 @media (min-width: 576px) {

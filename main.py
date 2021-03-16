@@ -315,7 +315,7 @@ class User(object):
     def add_points(userID, points):
 
         # initialize user variable and sql cursor
-        u = str(userID)
+        u = (userID,)
         cur = mysql.connection.cursor()
         
         # get current points for selected user
@@ -333,7 +333,7 @@ class User(object):
     def subtract_points(userID, points):
 
         # initialize user variable and sql cursor
-        u = str(userID)
+        u = (userID,)
         cur = mysql.connection.cursor()
         
         # get current points for selected user
@@ -435,7 +435,12 @@ class User(object):
         cur.execute("UPDATE users SET is_authenticated=0, is_active=0 WHERE userID = %s" % (user.userID))
         mysql.connection.commit()
 
+    def delete_user(userID):
 
+        #deactivate user
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE users SET is_authenticated=0, is_active=0 WHERE userID = %s" % (userID))
+        mysql.connection.commit()
 
 class Home(object):
     def __init__(self, homeID, homeName, adminUserID):
@@ -558,6 +563,14 @@ def login():
 
         # display login page
         return render_template('login.html', error=error)
+
+@app.route('/logout', methods=['GET', 'POST'])
+def logout():
+    if request.method == "GET":
+        user = current_user
+        logout_user()
+        # display login page
+        return redirect(url_for('login'))
 
 @app.route('/admin')
 @login_required
@@ -715,13 +728,13 @@ def deleteReward(rewardID):
     # return to admin page
     return redirect(url_for('admin'))
 
-@app.route('/admin/newreward', methods=['GET','POST'])
+@app.route('/admin/newreward/<userID>', methods=['GET','POST'])
 @login_required
-def createReward():
+def createReward(userID):
     if request.method == "POST":
 
         # get current user
-        user = current_user
+        user = User.get_user(userID)
 
         # get reward info from form and user object
         rewardName = request.form['rewardName']
@@ -729,7 +742,7 @@ def createReward():
         homeID = user.homeID
 
         # create new reward
-        Reward.create_new_reward(rewardName, points, homeID)
+        Reward.create_new_reward(rewardName, points, user.userID)
 
         # return to admin page
         return redirect(url_for('admin'))
@@ -1361,7 +1374,7 @@ def addUserPoints(userID):
             error = "you can't add that many points."
             return render_template('addpoints.html', error=error)
         else:
-            User.add_points(userID, points)
+            User.add_points(user.userID, points)
             return redirect('/admin/' + userID)
     
     if request.method == "GET":     
@@ -1457,10 +1470,49 @@ def promoteUser(userID):
         # display promote user page
         return render_template('promoteuser.html', user=user, error=error)
 
-#@login_required
-#@app.route('/admin/deleteuser/<userID>', methods=["GET", "POST"])
-#def deleteUser(userID):
+@login_required
+@app.route('/admin/deleteuser/<userID>', methods=["GET", "POST"])
+def deleteUser(userID):
+    user = User.get_user(userID)
+    error = None
 
+    if request.method == "POST":
+
+        User.delete_user(user.userID)   
+        return redirect('/admin')
+    
+    if request.method == "GET":     
+        # display subtract points page
+        return render_template('deleteuser.html', user=user)
+
+@login_required
+@app.route('/changepassword', methods=["GET", "POST"])
+def changePassword():
+
+    s = cfg.salt
+    user = current_user
+    error = None
+
+    if request.method == "POST":
+        password = request.form['password']
+        confirm = request.form['confirm']
+
+        if password != confirm:
+            error = 'Passwords do not match.'
+            return render_template('changepassword.html', user=user, error=error)
+
+        else:
+            pw = (s + password).encode()
+            pw_hash = hashlib.sha512(pw).hexdigest()
+
+            User.change_password(user.userID, pw_hash)
+
+            flash("Password was changed.")
+            return redirect(url_for('admin'))
+
+    if request.method == "GET":     
+        # display reset password page
+        return render_template('changepassword.html', user=user, error=error)
 
 if __name__ == "__main__":
     app.config['TRAP_BAD_REQUEST_ERRORS'] = True

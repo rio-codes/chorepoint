@@ -20,7 +20,9 @@
     <br>
 
     <div class="container-fluid">
-    <h3>{{ ask }}</h3>
+      {% if  ask != 0 %}
+        <h3>{{ ask }}</h3>
+        {% endif %}
     </div>
     <div class="container-fluid subtitle">
       <div class="row">

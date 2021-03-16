@@ -1,1 +1,1 @@
-salt = '>[vBrn!EY/p7;h@K'
+salt = ">[vBrn!EY/p7;h@K"

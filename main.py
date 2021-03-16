@@ -1516,4 +1516,4 @@ def changePassword():
 
 if __name__ == "__main__":
     app.config['TRAP_BAD_REQUEST_ERRORS'] = True
-    app.run(host="192.168.111.13", port=8080, debug=True)
+    app.run(host="localhost", port=8080, debug=True)

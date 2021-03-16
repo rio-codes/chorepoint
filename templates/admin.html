@@ -12,14 +12,38 @@
     <link href="{{ url_for('static', filename='css/main.css')}}" rel="stylesheet" media="screen">
   </head>
   <body>
-    <div class="container-fluid title">
-      <div class="row m-0">
-      <h1> hello, {{ displayName }}! welcome to your home dashboard!</h1>
-      </div>
-    </div>  
+
+    <script>
+      function openNav() {
+        document.getElementById("mySidenav").style.width = "250px";
+      }
+      
+      function closeNav() {
+        document.getElementById("mySidenav").style.width = "0";
+      }
+      </script>
+
+<div id="mySidenav" class="sidenav">
+  <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a> <a href="admin">home dashboard</a> |  <a href="self">my tasks and rewards</a> | <a href="about">about chorepoint</a> | <a href="logout">logout</a>
+</div>
+<div class="menubar">
+            chorepoint: digital motivation   
+            <img src="{{url_for('static', filename='hamburger.png')}}" onclick="openNav()">
+</div>
     <br>
 
-
+<div class="mainpage">
+  <br>
+  <br>
+  <br>
+  <div class="container options">
+    <div class="row options">
+        <div class="col-lg-6 col-sm-6">
+  <h1>hello, {{ displayName }}! welcome to your home dashboard!</h1>
+  </div>
+    </div>
+  </div>
+  <br>
 
     <div class="container users">
       <div class="row">
@@ -218,6 +242,6 @@
               </div>
       </div>
   </div>
-
+</div>
   </body>
 </html>

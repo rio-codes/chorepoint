@@ -1284,9 +1284,10 @@ def register():
                 error = 'That username is taken'
                 return render_template('register.html', error=error)
             else:
-                pw = (s + password).encode()
-                pw_hash = hashlib.sha512(pw).hexdigest()
-                User.create_new_user(username, displayName, homeName, pw_hash)
+                #pw = (s + password).encode()
+                #pw_hash = hashlib.sha512(pw).hexdigest()
+                #User.create_new_user(username, displayName, homeName, pw_hash)
+                print("creating new user")
                 return redirect(url_for('login'))
 
     if request.method == "GET":     
@@ -1513,6 +1514,14 @@ def changePassword():
     if request.method == "GET":     
         # display reset password page
         return render_template('changepassword.html', user=user, error=error)
+
+@app.route('/about', methods=["GET", "POST"])
+def about():
+
+    if request.method == "GET":     
+
+        return render_template('about.html')
+
 
 if __name__ == "__main__":
     app.config['TRAP_BAD_REQUEST_ERRORS'] = True

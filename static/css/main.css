@@ -89,6 +89,60 @@ td
 }
 */
 
+/* The side navigation menu */
+.sidenav {
+    height: 100%; /* 100% Full-height */
+    width: 0; /* 0 width - change this with JavaScript */
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Stay on top */
+    top: 0; /* Stay at the top */
+    right: 0;
+    background-color: #111; /* Black*/
+    overflow-x: hidden; /* Disable horizontal scroll */
+    padding-top: 60px; /* Place content 60px from the top */
+    transition: 0.5s; /* 0.5 second transition effect to slide in the sidenav */
+  }
+  
+  /* The navigation menu links */
+  .sidenav a {
+    padding: 5px 30px 5px 32px;
+    text-decoration: none;
+    font-size: 20px;
+    color: #818181;
+    display: block;
+    transition: 0.3s;
+  }
+  
+  /* When you mouse over the navigation links, change their color */
+  .sidenav a:hover {
+    color: #f1f1f1;
+  }
+  
+  /* Position and style the close button (top right corner) */
+  .sidenav .closebtn {
+    position: absolute;
+    top: 0;
+    right: 25px;
+    font-size: 36px;
+    margin-left: 50px;
+    }
+
+    .col-lg-2 {
+        background-color:white;
+        display:flex;
+    }
+
+    .col-sm-3 {
+        background-color:white;
+        display:flex;
+    }
+
+
+@media screen and (max-height: 450px) {
+    .sidenav {padding-top: 15px;}
+    .sidenav a {font-size: 18px;}
+ }
+
 @media (min-width: 300px) {
 
     body {
@@ -120,16 +174,6 @@ td
         flex-wrap: wrap;
         width: 100%;
         overflow: scroll;
-    }
-
-    .col-12 {
-
-        display:flex;
-        flex-wrap: wrap;
-        width:100%;
-        background-color:#C7AFBD;
-        /* padding: 30px;*/
-
     }
 
     .if-none {
@@ -178,7 +222,13 @@ td
     {
         background-color:#C7AFBD;
     }
-    
+
+    .menubar
+    {
+        background-color: #C7AFBD;
+        font-size: xx-large;
+        text-align: right;
+    }
 
     
     .title
@@ -186,6 +236,16 @@ td
         background-color: #C7AFBD;
     }
     
+    .menu
+    {
+        width: 50px;
+    }
+    
+    .toptitle
+    {
+        margin-left: 70px;
+        top: 0;
+    }
     textarea#invitelink
     {
         width: 50%;

@@ -169,6 +169,14 @@ td
         font-size:x-large;
     }
 
+    .about {
+        padding-left:5%;
+    }
+
+    ul {
+        font-size:large;
+    }
+
     /*.container-fluid.tables {
         display: block;
         width: 100%;

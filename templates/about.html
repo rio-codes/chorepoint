@@ -1,21 +1,49 @@
 <html>
   <head>
-    <title>about chorepoint</title>
+    <title>chorepoint</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="{{ url_for('static', filename='css/main.css')}}" rel="stylesheet" media="screen">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans&family=Raleway:wght@300&display=swap" rel="stylesheet"> 
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
     <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
+    <link href="{{ url_for('static', filename='css/main.css')}}" rel="stylesheet" media="screen">
   </head>
   <body>
-    <div class="container-fluid title">
 
-      <h1>It's great!</h1>
-    </div>
-    <div class="container-fluid">
-      <h4>more to come...</h4>
-      </div>
+    <script>
+      function openNav() {
+        document.getElementById("mySidenav").style.width = "250px";
+      }
+      
+      function closeNav() {
+        document.getElementById("mySidenav").style.width = "0";
+      }
+      </script>
+
+<div id="mySidenav" class="sidenav">
+  <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a> <a href="admin">home dashboard</a> |  <a href="self">my tasks and rewards</a> | <a href="about">about chorepoint</a> | <a href="logout">logout</a>
+</div>
+<div class="menubar">
+    
+  <img src="{{url_for('static', filename='hamburger.png')}}" style="vertical-align:middle" align="left" onclick="openNav()">
+  <img src="{{url_for('static', filename='chorepointlogosmall.png')}}">
+</div>
+
+<div class="container-fluid">
+
+  <h1>chorepoint is a digital motivation app.</h1>
+</div>
+
+<div class="about">
+    <ul>
+    <li>this app is for anyone who needs a little extra push to get things done. create tasks and give them a point value. then, create rewards and set how much they're worth.</li> 
+        <li>once you have earned the points by getting stuff done, treat yourself to some sweet rewards!<br></li>
+        <li>for more fun, manage someone else's tasks and rewards within a home. they'll be able to submit tasks for you to approve, and you'll approve the rewards as well! you can also manually add or subtract points at your discretion.</h3></li><br>
+        </ul>
+        <h2>let's get motivated!</h2>
+</div>
   </body>
 </html>

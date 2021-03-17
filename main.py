@@ -1,8 +1,9 @@
 from flask import Flask, flash, render_template, request, redirect, url_for, session
 from flask_login import current_user, logout_user, LoginManager, login_user, login_required
+from flask_mail import Mail, Message
 from flask_mysqldb import MySQL
 from datetime import datetime, timedelta
-import hashlib, random, string
+import hashlib, random, string, jwt, time
 import oak as cfg
 
 app = Flask(__name__)
@@ -12,6 +13,7 @@ mysql = MySQL(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
+mail = Mail(app)
 
 class Task(object):
     def __init__(self, taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, dateCompleted, frequency, dueDate, homeID, assignedUsername, active, permanent):
@@ -251,7 +253,7 @@ class Reward(object):
         mysql.connection.commit()
 
 class User(object):
-    def __init__(self, userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID, is_authenticated, is_active, is_anonymous):
+    def __init__(self, userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID, is_authenticated, is_active, is_anonymous, email):
         self.userID = userID
         self.username = username
         self.displayName = displayName
@@ -262,6 +264,7 @@ class User(object):
         self.homeID = homeID
         self.is_active = is_active
         self.is_anonymous = is_anonymous
+        self.email = email
 
     def is_authenticated(self):
         return True
@@ -283,7 +286,7 @@ class User(object):
         if user == []:
             return None
         else :
-            return User(user[0]['userID'],user[0]['username'],user[0]['displayName'],user[0]['admin'],user[0]['passwordHash'],user[0]['approvalRequired'],user[0]['points'],user[0]['homeID'],user[0]['is_authenticated'],user[0]['is_active'],user[0]['is_anonymous'])
+            return User(user[0]['userID'],user[0]['username'],user[0]['displayName'],user[0]['admin'],user[0]['passwordHash'],user[0]['approvalRequired'],user[0]['points'],user[0]['homeID'],user[0]['is_authenticated'],user[0]['is_active'],user[0]['is_anonymous'],user[0]['email'])
 
     def get_userID_from_username(username):
 
@@ -293,6 +296,20 @@ class User(object):
 
         # get userID for username
         cur.execute("SELECT userID FROM users WHERE username=%s", u)
+        userTuple = cur.fetchall()
+        user = int(((userTuple[0])[0]))
+
+        # return userID
+        return user
+    
+    def get_userID_from_email(email):
+
+        # initialize username variable and mysql cursor
+        e = (email,)
+        cur = mysql.connection.cursor()
+
+        # get userID for username
+        cur.execute("SELECT userID FROM users WHERE email=%s", e)
         userTuple = cur.fetchall()
         user = int(((userTuple[0])[0]))
 
@@ -354,7 +371,7 @@ class User(object):
         # return unicode user ID
         return userID
     
-    def create_new_user(username, displayName, homeName, pw_hash):
+    def create_new_user(username, displayName, homeName, pw_hash, email):
 
         # get last userID and create new userID
         cur = mysql.connection.cursor()
@@ -378,7 +395,7 @@ class User(object):
 
         # add new user to database
         cur = mysql.connection.cursor()
-        cur.execute("INSERT INTO users (userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID) VALUES (%s, '%s', '%s', 1, '%s', 0, 0, %s)" % (newUserID, username, displayName, pw_hash, newHomeID))
+        cur.execute("INSERT INTO users (userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID, email) VALUES (%s, '%s', '%s', 1, '%s', 0, 0, %s, '%s')" % (newUserID, username, displayName, pw_hash, newHomeID, email))
         mysql.connection.commit()
     
     def create_new_invited_user(username, displayName, homeID, pw_hash):
@@ -441,6 +458,25 @@ class User(object):
         cur = mysql.connection.cursor()
         cur.execute("UPDATE users SET is_authenticated=0, is_active=0 WHERE userID = %s" % (userID))
         mysql.connection.commit()
+
+    def send_reset_email(user):
+
+        token = user.get_reset_token()
+
+        msg = Message()
+        msg.subject = "Choreoint Password Reset"
+        msg.sender = cfg.MAIL_USERNAME
+        msg.recipients = [user.email]
+        msg.html = render_template('reset_email.html',
+                                user=user, 
+                                token=token)
+        mail.send(msg)
+
+    def get_reset_token(self, expires=500):
+        key = cfg.SECRET_KEY
+        return jwt.encode({'reset_password': self.username,
+                           'exp': time.time() + expires},
+                           key, algorithm="HS256")
 
 class Home(object):
     def __init__(self, homeID, homeName, adminUserID):
@@ -506,6 +542,19 @@ def load_user(userID):
         return User.get_user(userID)
     except:
         return None
+
+
+
+def verify_reset_token(token):
+
+    key = cfg.SECRET_KEY
+
+    username = jwt.decode(token, key, algorithms="HS256")['reset_password']
+    print ("VERIFYING TOKEN")
+
+    userID = User.get_userID_from_username(username)
+
+    return userID
 
 @app.route("/")
 def index():
@@ -1269,6 +1318,7 @@ def register():
         username = request.form['username']
         homeName = request.form['homeName']
         password = request.form['password']
+        email = request.form['email']
         confirm = request.form['confirm']
         error = None
 
@@ -1284,9 +1334,9 @@ def register():
                 error = 'That username is taken'
                 return render_template('register.html', error=error)
             else:
-                #pw = (s + password).encode()
-                #pw_hash = hashlib.sha512(pw).hexdigest()
-                #User.create_new_user(username, displayName, homeName, pw_hash)
+                pw = (s + password).encode()
+                pw_hash = hashlib.sha512(pw).hexdigest()
+                User.create_new_user(username, displayName, homeName, pw_hash, email)
                 print("creating new user")
                 return redirect(url_for('login'))
 
@@ -1522,6 +1572,78 @@ def about():
 
         return render_template('about.html')
 
+@app.route('/forgotpassword', methods=['GET', 'POST'])
+def forgotPassword():
+    error = None
+    if request.method == "POST":
+
+        # get email address from form
+        email = request.form['email']
+
+        # get userID and User object
+        try:
+            userID = User.get_userID_from_email(email)
+        except:
+            error = 'That email does not match our records.'
+            return render_template('forgotpassword.html', error=error)
+
+        
+        user = User.get_user(userID)
+
+        # send email to user
+        
+        User.send_reset_email(user)
+
+        return redirect(url_for('passwordchanged'))
+
+    if request.method == "GET":
+
+        # display login page
+        return render_template('forgotpassword.html', error=error)
+
+@app.route('/resetpasswordlink/<token>', methods=["GET", "POST"])
+def resetPasswordLink(token):
+
+    userID = verify_reset_token(token)
+    error = None
+    s = cfg.salt
+
+    user = User.get_user(userID)
+
+    print(user.username)
+    if request.method == "POST":
+
+        if user == None:
+            return render_template('invalidresetlink.html')
+
+        password = request.form['password']
+        confirm = request.form['confirm']
+
+        if password != confirm:
+        
+            error = 'Passwords do not match.'
+            return render_template('resetpasswordlink.html', user=user, error=error)
+
+        else:
+            pw = (s + password).encode()
+            pw_hash = hashlib.sha512(pw).hexdigest()
+
+            User.change_password(user.userID, pw_hash)
+
+            flash("Password was changed.")
+            return redirect(url_for('login'))
+
+    if request.method == "GET":     
+
+        # display reset password page
+        return render_template('resetpasswordlink.html', user=user)
+
+@app.route('/passwordchanged', methods=["GET", "POST"])
+def passwordchanged():
+
+    if request.method == "GET":     
+
+        return render_template('passwordchanged.html')
 
 if __name__ == "__main__":
     app.config['TRAP_BAD_REQUEST_ERRORS'] = True

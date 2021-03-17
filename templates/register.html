@@ -20,14 +20,22 @@
               <label for="displayName">your name:</label>
               <input type="text" class="form-control-plaintext fill-width" placeholder="name" name="displayName" value="{{request.form.displayName }}"> <br>what should we call you?<br>
               </div>
+              <br>
               <div class="flex-container">
                 <label for="username">your username:</label>  
                 <input type="text" class="form-control-plaintext fill-width" placeholder="username" name="username" value="{{request.form.username }}"> <br>a unique username<br>
               </div>
+              <br>
               <div class="flex-container">
                 <label for="homeName">your home name:</label>  
-                <input type="text" class="form-control-plaintext fill-width" placeholder="home name" name="homeName" value="{{request.form.homeName }}"> <br>a home allows you to assign tasks to home members<br>
+                <input type="text" class="form-control-plaintext fill-width" placeholder="home name" name="homeName" value="{{request.form.homeName }}"> <br>a home allows you to assign tasks to home members. For example, "Rio's Place"<br>
               </div>
+              <br>
+              <div class="flex-container">
+                <label for="email">your email address:</label>  
+                <input type="text" class="form-control-plaintext fill-width" placeholder="email address" name="email" value="{{request.form.email }}"> <br>we will only use this if you forget your password.<br>
+              </div>
+              <br>
               <div class="flex-container">
                 <label for="password">password:</label>  
                 <input type="password" class="form-control-plaintext fill-width" placeholder="password" name="password" value="{{request.form.password }}"> <br>

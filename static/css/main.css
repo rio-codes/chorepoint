@@ -96,7 +96,7 @@ td
     position: fixed; /* Stay in place */
     z-index: 1; /* Stay on top */
     top: 0; /* Stay at the top */
-    right: 0;
+    left: 0;
     background-color: #111; /* Black*/
     overflow-x: hidden; /* Disable horizontal scroll */
     padding-top: 60px; /* Place content 60px from the top */
@@ -137,6 +137,13 @@ td
         display:flex;
     }
 
+    .vertical-center {
+        margin: 0;
+        position: absolute;
+        top: 50%;
+        -ms-transform: translateY(-50%);
+        transform: translateY(-50%);
+      }
 
 @media screen and (max-height: 450px) {
     .sidenav {padding-top: 15px;}
@@ -226,7 +233,7 @@ td
     .menubar
     {
         background-color: #C7AFBD;
-        font-size: xx-large;
+        font-size: x-large;
         text-align: right;
     }
 
@@ -235,7 +242,7 @@ td
     {
         background-color: #C7AFBD;
     }
-    
+
     .menu
     {
         width: 50px;

@@ -6,10 +6,6 @@ import MySQLdb
 from datetime import datetime, timedelta
 import hashlib, random, string, jwt, time, re
 import oak as cfg
-from home import *
-from task import *
-from reward import *
-from user import *
 
 app = Flask(__name__)
 app.config.from_envvar("CHOREPOINT_SETTINGS")

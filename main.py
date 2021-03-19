@@ -2,9 +2,14 @@ from flask import Flask, flash, render_template, request, redirect, url_for, ses
 from flask_login import current_user, logout_user, LoginManager, login_user, login_required
 from flask_mail import Mail, Message
 from flask_mysqldb import MySQL
+import MySQLdb
 from datetime import datetime, timedelta
-import hashlib, random, string, jwt, time
+import hashlib, random, string, jwt, time, re
 import oak as cfg
+from home import *
+from task import *
+from reward import *
+from user import *
 
 app = Flask(__name__)
 app.config.from_envvar("CHOREPOINT_SETTINGS")
@@ -14,6 +19,236 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
 mail = Mail(app)
+
+class User(object):
+    def __init__(self, userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID, is_authenticated, is_active, is_anonymous, email):
+        self.userID = userID
+        self.username = username
+        self.displayName = displayName
+        self.admin = admin
+        self.passwordHash = passwordHash
+        self.approvalRequired = approvalRequired
+        self.points = points
+        self.homeID = homeID
+        self.is_active = is_active
+        self.is_anonymous = is_anonymous
+        self.email = email
+
+    def is_authenticated(self):
+        return True
+
+    @classmethod
+
+    def get_user(self, userID):
+
+        # initialize userID variable and mysql cursor
+        u = (userID,)
+        cur = mysql.connection.cursor()
+
+        # get user for userID
+        cur.execute("SELECT * FROM users WHERE userID=%s", u)
+        columns = [col[0] for col in cur.description]
+        user = [dict(zip(columns, row)) for row in cur.fetchall()]
+
+        # return user object
+        if user == []:
+            return None
+        else :
+            return User(user[0]['userID'],user[0]['username'],user[0]['displayName'],user[0]['admin'],user[0]['passwordHash'],user[0]['approvalRequired'],user[0]['points'],user[0]['homeID'],user[0]['is_authenticated'],user[0]['is_active'],user[0]['is_anonymous'],user[0]['email'])
+
+    def get_userID_from_username(username):
+
+        # initialize username variable and mysql cursor
+        u = (username,)
+        cur = mysql.connection.cursor()
+
+        # get userID for username
+        cur.execute("SELECT userID FROM users WHERE username=%s", u)
+        userTuple = cur.fetchall()
+        print(userTuple)
+        if userTuple != ():
+            user = int(((userTuple[0])[0]))
+        else:
+            user = False
+
+        # return userID
+        return user
+    
+    def get_userID_from_email(email):
+
+        # initialize username variable and mysql cursor
+        e = (email,)
+        cur = mysql.connection.cursor()
+
+        # get userID for username
+        cur.execute("SELECT userID FROM users WHERE email=%s", e)
+        userTuple = cur.fetchall()
+        user = int(((userTuple[0])[0]))
+
+        # return userID
+        return user
+
+    def get_home_users(homeID):
+
+        # initialize homeID variable and mysql cursor
+        h = (homeID,)
+        cur = mysql.connection.cursor()
+
+        # get userIDs for homeID
+        cur.execute("SELECT userID FROM users WHERE homeID=%s AND is_active=1", h)
+
+        # return userIDs
+        users = cur.fetchall()
+        return users
+    
+    def add_points(userID, points):
+
+        # initialize user variable and sql cursor
+        u = (userID,)
+        cur = mysql.connection.cursor()
+        
+        # get current points for selected user
+        cur.execute("SELECT points FROM users WHERE userID=%s", u)
+        currentPoints = (cur.fetchall()[0])[0]
+
+        # generate new point total
+        newPoints = currentPoints + int(points)
+
+        # add points to user
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE users SET points=%s WHERE userID=%s" % (newPoints, userID))
+        mysql.connection.commit()
+
+    def subtract_points(userID, points):
+
+        # initialize user variable and sql cursor
+        u = (userID,)
+        cur = mysql.connection.cursor()
+        
+        # get current points for selected user
+        cur.execute("SELECT points FROM users WHERE userID=%s", u)
+        currentPoints = (cur.fetchall()[0])[0]
+
+        # generate new point total
+        newPoints = currentPoints - int(points)
+
+        # add points to user
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE users SET points=%s WHERE userID=%s" % (newPoints, userID))
+        mysql.connection.commit()
+
+    def get_id(self):
+        print("get id")
+        userID = self.userID
+        # return unicode user ID
+        return userID
+    
+    def create_new_user(username, displayName, homeName, pw_hash, email):
+
+        # get last userID and create new userID
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT userID FROM users ORDER BY userID DESC LIMIT 1")
+        lastUserID = cur.fetchall()[0]
+        newUserID = int((lastUserID[0])) + 1
+
+        # get next homeID
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT homeID FROM homes ORDER BY homeID DESC LIMIT 1")
+        lastHomeID = cur.fetchall()[0]
+        newHomeID = int((lastHomeID[0])) + 1
+
+        # generate invite link
+        invite = Home.generate_invite_link()
+
+        # add new home to database
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO homes (homeID, homeName, adminUserID, inviteLink) VALUES (%s, %s, %s, %s)", (newHomeID, homeName, newUserID, invite))
+        mysql.connection.commit()
+
+        # add new user to database
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO users (userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID, email) VALUES (%s, %s, %s, 1, %s, 0, 0, %s, %s)", (newUserID, username, displayName, pw_hash, newHomeID, email))
+        mysql.connection.commit()
+    
+    def create_new_invited_user(username, displayName, homeID, pw_hash):
+
+        # get last userID and create new userID
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT userID FROM users ORDER BY userID DESC LIMIT 1")
+        lastUserID = cur.fetchall()[0]
+        newUserID = int((lastUserID[0])) + 1
+
+        # add new user to database
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO users (userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID) VALUES (%s, '%s', '%s', 0, '%s', 1, 0, %s)" % (newUserID, username, displayName, pw_hash, homeID))
+        mysql.connection.commit()
+
+    def change_password(userID, pw_hash):
+
+        print(pw_hash)
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE users SET passwordHash='%s' WHERE userID = %s" % (pw_hash, userID))
+        mysql.connection.commit()
+
+    def promote_user(userID, newUsername):
+
+        # get current user object and home object
+        user = User.get_user(userID)
+        home = Home.get_home_from_homeID(user.homeID)
+
+        # create new user with admin status and no approval required and get user object
+        User.create_new_user(newUsername, user.displayName, home.homeName, user.passwordHash)
+        newUserID = User.get_userID_from_username(newUsername)
+        newUser = User.get_user(newUserID)
+
+        # get new homeID
+        newHome = Home.get_home_from_homeID(newUser.homeID)
+
+        # change all tasks to new user and homeID
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE tasks SET assignedUserID=%s, homeID=%s WHERE assignedUserID = %s" % (newUserID, newHome.homeID, user.userID))
+        mysql.connection.commit()
+        
+        # set all active tasks to uncompleted
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE tasks SET approved=0 WHERE assignedUserID = %s AND active=1" % (newUserID))
+        mysql.connection.commit()
+
+        # change all rewards to new user and homeID
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE rewards SET assignedUserID=%s, homeID=%s WHERE assignedUserID = %s" % (newUserID, newHome.homeID, user.userID))
+        mysql.connection.commit()
+
+        # deactivate old user
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE users SET is_authenticated=0, is_active=0 WHERE userID = %s" % (user.userID))
+        mysql.connection.commit()
+
+    def delete_user(userID):
+
+        #deactivate user
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE users SET is_authenticated=0, is_active=0 WHERE userID = %s" % (userID))
+        mysql.connection.commit()
+
+    def send_reset_email(user):
+
+        token = user.get_reset_token()
+
+        msg = Message()
+        msg.subject = "Chorepoint Password Reset"
+        msg.sender = cfg.MAIL_USERNAME
+        msg.recipients = [user.email]
+        msg.html = render_template('reset_email.html',
+                                user=user, 
+                                token=token)
+        mail.send(msg)
+
+    def get_reset_token(self, expires=500):
+        key = cfg.SECRET_KEY
+        return jwt.encode({'reset_password': self.username,
+                           'exp': time.time() + expires},
+                           key, algorithm="HS256")
 
 class Task(object):
     def __init__(self, taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, dateCompleted, frequency, dueDate, homeID, assignedUsername, active, permanent):
@@ -165,6 +400,61 @@ class Task(object):
         cur.execute("UPDATE tasks SET active=0 WHERE taskID=%s", t)
         mysql.connection.commit()
 
+class Home(object):
+    def __init__(self, homeID, homeName, adminUserID):
+        self.homeID = homeID
+        self.homeName = homeName
+        self.adminUserID = adminUserID
+
+    @classmethod
+
+    def get_home(self, adminUserID):
+
+        # initialize userID variable and mysql cursor    
+        u = (adminUserID,)
+        cur = mysql.connection.cursor()
+
+        print(u)
+        # get home for admin user
+        cur.execute("SELECT * FROM homes WHERE adminUserID=%s", u)
+        columns = [col[0] for col in cur.description]
+        home = [dict(zip(columns, row)) for row in cur.fetchall()]
+        print(home)
+
+        # return home object
+        self.homeID = home[0]['homeID'] 
+        self.homeName = home[0]['homeName']
+        self.adminUserID = adminUserID
+        self.inviteLink = home[0]['inviteLink']
+        return self
+    
+    @classmethod
+
+    def get_home_from_homeID(self, homeID):
+
+        # initialize homeID variable and mysql cursor    
+        h = (homeID,)
+        cur = mysql.connection.cursor()
+
+        # get home for admin user
+        cur.execute("SELECT * FROM homes WHERE homeID=%s", h)
+        columns = [col[0] for col in cur.description]
+        home = [dict(zip(columns, row)) for row in cur.fetchall()]
+        print(home)
+
+        # return home object
+        self.homeID = home[0]['homeID'] 
+        self.homeName = home[0]['homeName']
+        self.adminUserID = home[0]['adminUserID']
+        self.inviteLink = home[0]['inviteLink']
+
+        return self
+
+    def generate_invite_link():
+
+        randomString = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(10))
+        return(randomString)
+
 class Reward(object):
     def __init__(self, rewardID, rewardName, points, approved, assignedUserID, homeID, active):
         self.rewardID = rewardID
@@ -252,287 +542,6 @@ class Reward(object):
         cur.execute("INSERT INTO rewards (rewardID, rewardName, points, assignedUserID, approved, homeID, active) VALUES (%s, '%s', %s, %s, 0, %s, 1)" % (newRewardID, str(rewardName), points, assignedUserID,  homeID))
         mysql.connection.commit()
 
-class User(object):
-    def __init__(self, userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID, is_authenticated, is_active, is_anonymous, email):
-        self.userID = userID
-        self.username = username
-        self.displayName = displayName
-        self.admin = admin
-        self.passwordHash = passwordHash
-        self.approvalRequired = approvalRequired
-        self.points = points
-        self.homeID = homeID
-        self.is_active = is_active
-        self.is_anonymous = is_anonymous
-        self.email = email
-
-    def is_authenticated(self):
-        return True
-
-    @classmethod
-
-    def get_user(self, userID):
-
-        # initialize userID variable and mysql cursor
-        u = (userID,)
-        cur = mysql.connection.cursor()
-
-        # get user for userID
-        cur.execute("SELECT * FROM users WHERE userID=%s", u)
-        columns = [col[0] for col in cur.description]
-        user = [dict(zip(columns, row)) for row in cur.fetchall()]
-
-        # return user object
-        if user == []:
-            return None
-        else :
-            return User(user[0]['userID'],user[0]['username'],user[0]['displayName'],user[0]['admin'],user[0]['passwordHash'],user[0]['approvalRequired'],user[0]['points'],user[0]['homeID'],user[0]['is_authenticated'],user[0]['is_active'],user[0]['is_anonymous'],user[0]['email'])
-
-    def get_userID_from_username(username):
-
-        # initialize username variable and mysql cursor
-        u = (username,)
-        cur = mysql.connection.cursor()
-
-        # get userID for username
-        cur.execute("SELECT userID FROM users WHERE username=%s", u)
-        userTuple = cur.fetchall()
-        user = int(((userTuple[0])[0]))
-
-        # return userID
-        return user
-    
-    def get_userID_from_email(email):
-
-        # initialize username variable and mysql cursor
-        e = (email,)
-        cur = mysql.connection.cursor()
-
-        # get userID for username
-        cur.execute("SELECT userID FROM users WHERE email=%s", e)
-        userTuple = cur.fetchall()
-        user = int(((userTuple[0])[0]))
-
-        # return userID
-        return user
-
-    def get_home_users(homeID):
-
-        # initialize homeID variable and mysql cursor
-        h = (homeID,)
-        cur = mysql.connection.cursor()
-
-        # get userIDs for homeID
-        cur.execute("SELECT userID FROM users WHERE homeID=%s AND is_active=1", h)
-
-        # return userIDs
-        users = cur.fetchall()
-        return users
-    
-    def add_points(userID, points):
-
-        # initialize user variable and sql cursor
-        u = (userID,)
-        cur = mysql.connection.cursor()
-        
-        # get current points for selected user
-        cur.execute("SELECT points FROM users WHERE userID=%s", u)
-        currentPoints = (cur.fetchall()[0])[0]
-
-        # generate new point total
-        newPoints = currentPoints + int(points)
-
-        # add points to user
-        cur = mysql.connection.cursor()
-        cur.execute("UPDATE users SET points=%s WHERE userID=%s" % (newPoints, userID))
-        mysql.connection.commit()
-
-    def subtract_points(userID, points):
-
-        # initialize user variable and sql cursor
-        u = (userID,)
-        cur = mysql.connection.cursor()
-        
-        # get current points for selected user
-        cur.execute("SELECT points FROM users WHERE userID=%s", u)
-        currentPoints = (cur.fetchall()[0])[0]
-
-        # generate new point total
-        newPoints = currentPoints - int(points)
-
-        # add points to user
-        cur = mysql.connection.cursor()
-        cur.execute("UPDATE users SET points=%s WHERE userID=%s" % (newPoints, userID))
-        mysql.connection.commit()
-
-    def get_id(self):
-        print("get id")
-        userID = self.userID
-        # return unicode user ID
-        return userID
-    
-    def create_new_user(username, displayName, homeName, pw_hash, email):
-
-        # get last userID and create new userID
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT userID FROM users ORDER BY userID DESC LIMIT 1")
-        lastUserID = cur.fetchall()[0]
-        newUserID = int((lastUserID[0])) + 1
-
-        # get next homeID
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT homeID FROM homes ORDER BY homeID DESC LIMIT 1")
-        lastHomeID = cur.fetchall()[0]
-        newHomeID = int((lastHomeID[0])) + 1
-
-        # generate invite link
-        invite = Home.generate_invite_link()
-
-        # add new home to database
-        cur = mysql.connection.cursor()
-        cur.execute("INSERT INTO homes (homeID, homeName, adminUserID, inviteLink) VALUES (%s, '%s', %s, '%s')" % (newHomeID, homeName, newUserID, invite))
-        mysql.connection.commit()
-
-        # add new user to database
-        cur = mysql.connection.cursor()
-        cur.execute("INSERT INTO users (userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID, email) VALUES (%s, '%s', '%s', 1, '%s', 0, 0, %s, '%s')" % (newUserID, username, displayName, pw_hash, newHomeID, email))
-        mysql.connection.commit()
-    
-    def create_new_invited_user(username, displayName, homeID, pw_hash):
-
-        # get last userID and create new userID
-        cur = mysql.connection.cursor()
-        cur.execute("SELECT userID FROM users ORDER BY userID DESC LIMIT 1")
-        lastUserID = cur.fetchall()[0]
-        newUserID = int((lastUserID[0])) + 1
-
-        # add new user to database
-        cur = mysql.connection.cursor()
-        cur.execute("INSERT INTO users (userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID) VALUES (%s, '%s', '%s', 0, '%s', 1, 0, %s)" % (newUserID, username, displayName, pw_hash, homeID))
-        mysql.connection.commit()
-
-    def change_password(userID, pw_hash):
-
-        print(pw_hash)
-        cur = mysql.connection.cursor()
-        cur.execute("UPDATE users SET passwordHash='%s' WHERE userID = %s" % (pw_hash, userID))
-        mysql.connection.commit()
-
-    def promote_user(userID, newUsername):
-
-        # get current user object and home object
-        user = User.get_user(userID)
-        home = Home.get_home_from_homeID(user.homeID)
-
-        # create new user with admin status and no approval required and get user object
-        User.create_new_user(newUsername, user.displayName, home.homeName, user.passwordHash)
-        newUserID = User.get_userID_from_username(newUsername)
-        newUser = User.get_user(newUserID)
-
-        # get new homeID
-        newHome = Home.get_home_from_homeID(newUser.homeID)
-
-        # change all tasks to new user and homeID
-        cur = mysql.connection.cursor()
-        cur.execute("UPDATE tasks SET assignedUserID=%s, homeID=%s WHERE assignedUserID = %s" % (newUserID, newHome.homeID, user.userID))
-        mysql.connection.commit()
-        
-        # set all active tasks to uncompleted
-        cur = mysql.connection.cursor()
-        cur.execute("UPDATE tasks SET approved=0 WHERE assignedUserID = %s AND active=1" % (newUserID))
-        mysql.connection.commit()
-
-        # change all rewards to new user and homeID
-        cur = mysql.connection.cursor()
-        cur.execute("UPDATE rewards SET assignedUserID=%s, homeID=%s WHERE assignedUserID = %s" % (newUserID, newHome.homeID, user.userID))
-        mysql.connection.commit()
-
-        # deactivate old user
-        cur = mysql.connection.cursor()
-        cur.execute("UPDATE users SET is_authenticated=0, is_active=0 WHERE userID = %s" % (user.userID))
-        mysql.connection.commit()
-
-    def delete_user(userID):
-
-        #deactivate user
-        cur = mysql.connection.cursor()
-        cur.execute("UPDATE users SET is_authenticated=0, is_active=0 WHERE userID = %s" % (userID))
-        mysql.connection.commit()
-
-    def send_reset_email(user):
-
-        token = user.get_reset_token()
-
-        msg = Message()
-        msg.subject = "Choreoint Password Reset"
-        msg.sender = cfg.MAIL_USERNAME
-        msg.recipients = [user.email]
-        msg.html = render_template('reset_email.html',
-                                user=user, 
-                                token=token)
-        mail.send(msg)
-
-    def get_reset_token(self, expires=500):
-        key = cfg.SECRET_KEY
-        return jwt.encode({'reset_password': self.username,
-                           'exp': time.time() + expires},
-                           key, algorithm="HS256")
-
-class Home(object):
-    def __init__(self, homeID, homeName, adminUserID):
-        self.homeID = homeID
-        self.homeName = homeName
-        self.adminUserID = adminUserID
-
-    @classmethod
-
-    def get_home(self, adminUserID):
-
-        # initialize userID variable and mysql cursor    
-        u = (adminUserID,)
-        cur = mysql.connection.cursor()
-
-        print(u)
-        # get home for admin user
-        cur.execute("SELECT * FROM homes WHERE adminUserID=%s", u)
-        columns = [col[0] for col in cur.description]
-        home = [dict(zip(columns, row)) for row in cur.fetchall()]
-        print(home)
-
-        # return home object
-        self.homeID = home[0]['homeID'] 
-        self.homeName = home[0]['homeName']
-        self.adminUserID = adminUserID
-        self.inviteLink = home[0]['inviteLink']
-        return self
-    
-    @classmethod
-
-    def get_home_from_homeID(self, homeID):
-
-        # initialize homeID variable and mysql cursor    
-        h = (homeID,)
-        cur = mysql.connection.cursor()
-
-        # get home for admin user
-        cur.execute("SELECT * FROM homes WHERE homeID=%s", h)
-        columns = [col[0] for col in cur.description]
-        home = [dict(zip(columns, row)) for row in cur.fetchall()]
-        print(home)
-
-        # return home object
-        self.homeID = home[0]['homeID'] 
-        self.homeName = home[0]['homeName']
-        self.adminUserID = home[0]['adminUserID']
-        self.inviteLink = home[0]['inviteLink']
-
-        return self
-
-    def generate_invite_link():
-
-        randomString = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(10))
-        return(randomString)
-
 @login_manager.user_loader
 def load_user(userID):
     print("load_user")
@@ -542,8 +551,6 @@ def load_user(userID):
         return User.get_user(userID)
     except:
         return None
-
-
 
 def verify_reset_token(token):
 
@@ -555,6 +562,105 @@ def verify_reset_token(token):
     userID = User.get_userID_from_username(username)
 
     return userID
+
+def validateRegistration(displayName, username, homeName, password, email, confirm):
+
+    s = cfg.salt
+    isValid = dict()
+    isValid['error'] = None
+
+
+    if displayName.strip().isdigit():
+        print('name is digit')
+        isValid['error'] = 'Your name cannot be a number'
+        isValid['displayNameString'] = 'invalid'
+        isValid['usernameString'] = None
+        isValid['homeNameString'] = None
+        isValid['pw_hash'] = None
+        isValid['emailString'] = None
+        return isValid
+    else:
+        isValid['displayNameString'] = MySQLdb.escape_string(displayName)
+    
+    isValid['usernameString'] = MySQLdb.escape_string(username)
+    if isValid['usernameString'].strip().isdigit():
+        print('un is digit')
+        isValid['error']  = 'Your username cannot be a number'
+        isValid['usernameString'] = 'invalid'
+        isValid['displayNameString'] = None
+        isValid['homeNameString'] = None
+        isValid['pw_hash'] = None
+        isValid['emailString'] = None
+        return isValid
+    else:
+        isValid['usernameString'] = MySQLdb.escape_string(username)
+        print (isValid['usernameString'])
+        isUser = User.get_userID_from_username(isValid['usernameString'])
+        print(isUser)
+        if isUser != False:
+            isValid['error']  = 'That username is taken'
+            isValid['usernameString'] = 'invalid'
+            isValid['displayNameString'] = 'invalid'
+            isValid['usernameString'] = None
+            isValid['homeNameString'] = None
+            isValid['pw_hash'] = None
+            isValid['emailString'] = None
+            return isValid
+
+    
+    if homeName.strip().isdigit():
+        isValid['error']  = 'Your home name cannot be a number'
+        isValid['homeNameString'] = 'invalid'
+        isValid['displayNameString'] = None
+        isValid['usernameString'] = None
+        isValid['pw_hash'] = None
+        isValid['emailString'] = None
+        return isValid
+    else:
+        isValid['homeNameString'] = MySQLdb.escape_string(homeName)
+
+    passwordRegex = re.compile('[@_!#$%^&*()<>?/\|}{~:]')
+    emailRegex = re.compile('^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$')
+
+    if (any(x.isupper() for x in password) 
+        and any(x.islower() for x in password) 
+        and any(x.isdigit() for x in password) 
+        and len(password) >= 10 
+        and re.search(passwordRegex, password) != None): 
+            pw = (s + password).encode()
+            print (pw)
+            isValid['pw_hash'] = hashlib.sha512(pw).hexdigest()
+    else:
+            isValid['error'] = 'Your password must be at least 10 characters long and contain an uppercase letter, a lowercase letter, and a symbol.'
+            isValid['pw_hash'] = 'invalid'
+            isValid['displayNameString'] = 'invalid'
+            isValid['usernameString'] = None
+            isValid['homeNameString'] = None
+            isValid['emailString'] = None
+            return isValid
+    
+    if (re.search(emailRegex,email)):
+        isValid['emailString'] = MySQLdb.escape_string(email) 
+    else:
+        isValid['error'] = 'Please enter a valid email address.'
+        isValid['emailString'] = 'invalid'
+        isValid['displayNameString'] = None
+        isValid['usernameString'] = None
+        isValid['homeNameString'] = None
+        isValid['pw_hash'] = None
+        return isValid
+    
+    if password != confirm:
+        isValid['error'] = 'Passwords do not match.'
+        isValid['pw_hash'] = 'invalid'
+        isValid['displayNameString'] = None
+        isValid['usernameString'] = None
+        isValid['homeNameString'] = None
+        isValid['pw_hash'] = None
+        isValid['emailString'] = None
+        return isValid
+    
+    return isValid
 
 @app.route("/")
 def index():
@@ -575,17 +681,24 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
+        if not username.strip().isdigit():
+            usernameString = MySQLdb.escape_string(username)
+        else:
+            error = 'Incorrect username.'
+            return render_template('login.html', error=error)
+
         pw = (s + password).encode()
         pw_hash = hashlib.sha512(pw).hexdigest()
 
         # get userID and User object
-        try:
-            userID = User.get_userID_from_username(username)
-        except:
+        
+        userID = User.get_userID_from_username(usernameString)
+
+        if userID == None:
             error = 'Incorrect username and/or password.'
             return render_template('login.html', error=error)
-
-        user = User.get_user(userID)
+        else:
+            user = User.get_user(userID)
             
         if user.passwordHash != pw_hash:    
             error = 'Incorrect password.'
@@ -597,8 +710,7 @@ def login():
             cur = mysql.connection.cursor()
             cur.execute("UPDATE users SET is_authenticated=1 WHERE userID=%s", userIDTuple )
             mysql.connection.commit()
-            user = User.get_user(userID)
-            print(user.is_authenticated)
+            
             login_user(user)
             session['userID'] = 'userID'
 
@@ -787,11 +899,21 @@ def createReward(userID):
 
         # get reward info from form and user object
         rewardName = request.form['rewardName']
+        if rewardName.strip().isdigit():
+            error = 'Reward name cannot be a number'
+            return render_template('newreward.html',error=error)
+        else:
+            rewardNameString = MySQLdb.escape_string(rewardName)
+
         points = request.form['points']
+        if not points.strip().isdigit():
+            error = 'Point value must be a number'
+            return render_template('newrward.html', error=error)
+
         homeID = user.homeID
 
         # create new reward
-        Reward.create_new_reward(rewardName, points, user.userID)
+        Reward.create_new_reward(rewardNameString, points, user.userID)
 
         # return to admin page
         return redirect(url_for('admin'))
@@ -858,6 +980,7 @@ def deleteTask(taskID):
 @app.route('/admin/newtask', methods=['GET','POST'])
 @login_required
 def createTask():
+    error = None
     if request.method == "POST":
 
         # get current user
@@ -874,14 +997,16 @@ def createTask():
             except:
                 oneOff = 0
                 frequency = request.form['frequency']
-                dueDate = "3000-01-01"
+                if not frequency.strip().isdigit():
+                    error = 'Frequency must be a number'
+                    return render_template('newtask.html',error=error)
+                else:    
+                    dueDate = "3000-01-01"
 
         if permanent == "1":
             frequency = 0
             oneOff = 0
             dueDate = "3000-01-01"
-            print(frequency)
-            print(dueDate)
         
 
         elif oneOff == "1":
@@ -889,22 +1014,29 @@ def createTask():
                 dueDate = request.form['dueDate']
 
         taskName = request.form['taskName']
+        if taskName.strip().isdigit():
+            error = 'Task name cannot be a number'
+            return render_template('newtask.html',error=error)
+        else:
+            taskNameString = MySQLdb.escape_string(taskName)
+
         points = request.form['points']
+        if not points.strip().isdigit():
+            error = 'Point value must be a number'
+            return render_template('newtask.html', error=error)
+        
         assignedUserID = request.form['assignedUserID']
         createdByUserID = user.userID
         
         homeID = user.homeID
 
         # create new task for future date
-        Task.create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID, dueDate, permanent, oneOff)
-
-        print(assignedUserID)
-        print(createdByUserID)
+        Task.create_new_task(taskNameString, points, assignedUserID, createdByUserID, frequency, homeID, dueDate, permanent, oneOff)
 
         if assignedUserID == createdByUserID:
             return redirect(url_for('self'))
         else:
-            return redirect(url_for('admin'))
+            return redirect(url_for('admin/<assignedUserID>'))
 
     if request.method == "GET":
 
@@ -1128,6 +1260,7 @@ def self():
 @app.route('/self/newtask', methods=['GET','POST'])
 @login_required
 def createSelfTask():
+    error = None
     if request.method == "POST":
 
         # get current user
@@ -1144,7 +1277,11 @@ def createSelfTask():
             except:
                 oneOff = 0
                 frequency = request.form['frequency']
-                dueDate = "3000-01-01"
+                if not frequency.strip().isdigit():
+                    error = 'Frequency must be a number'
+                    return render_template('newtask.html',error=error)
+                else:    
+                    dueDate = "3000-01-01"
 
         if permanent == "1":
             frequency = 0
@@ -1159,14 +1296,24 @@ def createSelfTask():
                 dueDate = request.form['dueDate']
 
         taskName = request.form['taskName']
+        if taskName.strip().isDigit():
+            error = 'Task name cannot be a number'
+            return render_template('newtask.html',error=error)
+        else:
+            taskNameString = MySQLdb.escape_string(taskName)
+
         points = request.form['points']
+        if not points.strip().isdigit():
+            error = 'Point value must be a number'
+            return render_template('newtask.html', error=error)
+
         assignedUserID = user.userID
         createdByUserID = user.userID
         
         homeID = user.homeID
 
         # create new task for future date
-        Task.create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID, dueDate, permanent, oneOff)
+        Task.create_new_task(taskNameString, points, assignedUserID, createdByUserID, frequency, homeID, dueDate, permanent, oneOff)
 
         # return to self page
         return redirect(url_for('self'))
@@ -1229,10 +1376,19 @@ def createSelfReward():
 
         # get reward info from form and user object
         rewardName = request.form['rewardName']
+        if rewardName.strip().isdigit():
+            error = 'Reward name cannot be a number'
+            return render_template('newreward.html',error=error)
+        else:
+            rewardNameString = MySQLdb.escape_string(taskName)
+
         points = request.form['points']
+        if not points.strip().isdigit():
+            error = 'Point value must be a number'
+            return render_template('newtask.html', error=error)
 
         # create new reward
-        Reward.create_new_reward(rewardName, points, user.userID)
+        Reward.create_new_reward(rewardNameString, points, user.userID)
 
         # return to admin page
         return redirect(url_for('self'))
@@ -1308,41 +1464,31 @@ def notenough():
 
 @app.route('/register', methods=["GET", "POST"])
 def register():
-    error = None
-    s = cfg.salt
 
     if request.method == "POST":
 
-        # get info from form
+        # get input from registration form
         displayName = request.form['displayName']
         username = request.form['username']
         homeName = request.form['homeName']
         password = request.form['password']
         email = request.form['email']
         confirm = request.form['confirm']
-        error = None
 
-        if password != confirm:
-            error = 'Passwords do not match.'
+        # if input is valid get values, otherwise return and print error
+
+        isValid = validateRegistration(displayName, username, homeName, password, email, confirm)
+        if isValid['error'] == None:
+            User.create_new_user(isValid['usernameString'], isValid['displayNameString'], isValid['homeNameString'], isValid['pw_hash'], isValid['emailString'])
+            print("creating new user")
+            return redirect(url_for('login'))
         else:
-            cur = mysql.connection.cursor()
-            u = (username,)
-            cur.execute("SELECT * FROM users WHERE username = %s", u)
-            isUser = cur.fetchall()
-            print(isUser)
-            if isUser == True:
-                error = 'That username is taken'
-                return render_template('register.html', error=error)
-            else:
-                pw = (s + password).encode()
-                pw_hash = hashlib.sha512(pw).hexdigest()
-                User.create_new_user(username, displayName, homeName, pw_hash, email)
-                print("creating new user")
-                return redirect(url_for('login'))
+            error = isValid['error']
+            return render_template('register.html', error=error)
 
     if request.method == "GET":     
         # display register page
-        return render_template('register.html', error=error)
+        return render_template('register.html')
 
 @app.route('/invite/<inviteLink>', methods=["GET", "POST"])
 def inviteRegister(inviteLink):
@@ -1361,26 +1507,20 @@ def inviteRegister(inviteLink):
         # get info from form
         displayName = request.form['displayName']
         username = request.form['username']
+        email = request.form['email']
         password = request.form['password']
         confirm = request.form['confirm']
         error = None
 
-        if password != confirm:
-            error = 'Passwords do not match.'
+        isValid = validateRegistration(displayName, username, home.homeName, password, email, confirm)
+
+        if isValid['error'] == None:
+            User.create_new_user(isValid['usernameString'], isValid['displayNameString'], isValid['homeNameString'], isValid['pw_hash'], isValid['emailString'])
+            print("creating new user")
+            return redirect(url_for('login'))
         else:
-            cur = mysql.connection.cursor()
-            u = (username,)
-            cur.execute("SELECT * FROM users WHERE username = %s", u)
-            isUser = cur.fetchall()
-            print(isUser)
-            if isUser == True:
-                error = 'That username is taken'
-                return render_template('register.html', home=home, error=error)
-            else:
-                pw = (s + password).encode()
-                pw_hash = hashlib.sha512(pw).hexdigest()
-                User.create_new_invited_user(username, displayName, home.homeID, pw_hash)
-                return redirect(url_for('login'))
+            error = isValid['error']
+            return render_template('invite.html', error=error)
 
     if request.method == "GET":
         # get home
@@ -1543,6 +1683,7 @@ def changePassword():
     s = cfg.salt
     user = current_user
     error = None
+    passwordRegex = re.compile('[@_!#$%^&*()<>?/\|}{~:]')
 
     if request.method == "POST":
         password = request.form['password']
@@ -1553,8 +1694,16 @@ def changePassword():
             return render_template('changepassword.html', user=user, error=error)
 
         else:
-            pw = (s + password).encode()
-            pw_hash = hashlib.sha512(pw).hexdigest()
+            if (any(x.isupper() for x in password) 
+            and any(x.islower() for x in password) 
+            and any(x.isdigit() for x in password) 
+            and len(password) >= 10 
+            and re.search(passwordRegex, password) != None): 
+                pw = (s + password).encode()
+
+                pw_hash = hashlib.sha512(pw).hexdigest()
+            else:
+                error = 'Your password must be at least 10 characters long and contain an uppercase letter, a lowercase letter, and a symbol.'
 
             User.change_password(user.userID, pw_hash)
 
@@ -1607,6 +1756,7 @@ def resetPasswordLink(token):
     userID = verify_reset_token(token)
     error = None
     s = cfg.salt
+    passwordRegex = re.compile('[@_!#$%^&*()<>?/\|}{~:]')
 
     user = User.get_user(userID)
 
@@ -1624,14 +1774,19 @@ def resetPasswordLink(token):
             error = 'Passwords do not match.'
             return render_template('resetpasswordlink.html', user=user, error=error)
 
-        else:
+        elif (any(x.isupper() for x in password) 
+            and any(x.islower() for x in password) 
+            and any(x.isdigit() for x in password) 
+            and len(password) >= 10 
+            and re.search(passwordRegex, password) != None): 
             pw = (s + password).encode()
             pw_hash = hashlib.sha512(pw).hexdigest()
-
             User.change_password(user.userID, pw_hash)
-
             flash("Password was changed.")
             return redirect(url_for('login'))
+        else:
+            error = 'Your password must be at least 10 characters long and contain an uppercase letter, a lowercase letter, and a symbol.'
+            return render_template('resetpasswordlink.html', user=user, error=error)
 
     if request.method == "GET":     
 

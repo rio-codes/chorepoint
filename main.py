@@ -6,7 +6,6 @@ from flask_appconfig.heroku import from_heroku_envvars
 import MySQLdb
 from datetime import datetime, timedelta
 import hashlib, random, string, jwt, time, re, os
-import oak as cfg
 
 app = Flask(__name__)
 

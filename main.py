@@ -6,7 +6,7 @@ from flask_appconfig.heroku import from_heroku_envvars
 import MySQLdb
 from datetime import datetime, timedelta
 import hashlib, random, string, jwt, time, re, os
-from config import ProdConfig
+from config import *
 
 app = Flask(__name__)
 

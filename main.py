@@ -7,8 +7,6 @@ import MySQLdb
 from datetime import datetime, timedelta
 import hashlib, random, string, jwt, time, re, os
 
-app = Flask(__name__)
-
 is_prod = os.environ.get('IS_HEROKU', None)
 
 if is_prod:
@@ -17,6 +15,8 @@ else:
     app.config.from_envvar("CHOREPOINT_SETTINGS")
 
 print(os.environ.get('MYSQL_HOST'))
+
+app = Flask(__name__)
 
 mysql = MySQL(app)
 login_manager = LoginManager()

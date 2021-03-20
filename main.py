@@ -2,13 +2,20 @@ from flask import Flask, flash, render_template, request, redirect, url_for, ses
 from flask_login import current_user, logout_user, LoginManager, login_user, login_required
 from flask_mail import Mail, Message
 from flask_mysqldb import MySQL
+from flask_appconfig.heroku import from_heroku_envvars
 import MySQLdb
 from datetime import datetime, timedelta
-import hashlib, random, string, jwt, time, re
+import hashlib, random, string, jwt, time, re, os
 import oak as cfg
 
 app = Flask(__name__)
-app.config.from_envvar("CHOREPOINT_SETTINGS")
+
+is_prod = os.environ.get('IS_HEROKU', None)
+
+if is_prod:
+    from_heroku_envvars(app.config)
+else:
+    app.config.from_envvar("CHOREPOINT_SETTINGS")
 
 mysql = MySQL(app)
 login_manager = LoginManager()
@@ -233,7 +240,7 @@ class User(object):
 
         msg = Message()
         msg.subject = "Chorepoint Password Reset"
-        msg.sender = cfg.MAIL_USERNAME
+        msg.sender = environ.get('MAIL_USERNAME')
         msg.recipients = [user.email]
         msg.html = render_template('reset_email.html',
                                 user=user, 
@@ -241,7 +248,7 @@ class User(object):
         mail.send(msg)
 
     def get_reset_token(self, expires=500):
-        key = cfg.SECRET_KEY
+        key = environ.get('SECRET_KEY')
         return jwt.encode({'reset_password': self.username,
                            'exp': time.time() + expires},
                            key, algorithm="HS256")
@@ -550,7 +557,7 @@ def load_user(userID):
 
 def verify_reset_token(token):
 
-    key = cfg.SECRET_KEY
+    key = environ.get('SECRET_KEY')
 
     username = jwt.decode(token, key, algorithms="HS256")['reset_password']
     print ("VERIFYING TOKEN")
@@ -561,7 +568,7 @@ def verify_reset_token(token):
 
 def validateRegistration(displayName, username, homeName, password, email, confirm):
 
-    s = cfg.salt
+    s = environ.get('SALT')
     isValid = dict()
     isValid['error'] = None
 
@@ -669,7 +676,7 @@ def bootstrap_css():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
-    s = cfg.salt
+    s = environ.get('SALT')
 
     if request.method == "POST":
 
@@ -1489,7 +1496,7 @@ def register():
 @app.route('/invite/<inviteLink>', methods=["GET", "POST"])
 def inviteRegister(inviteLink):
     error = None
-    s = cfg.salt
+    s = environ.get('SALT')
 
     if request.method == "POST":
 
@@ -1516,7 +1523,7 @@ def inviteRegister(inviteLink):
             return redirect(url_for('login'))
         else:
             error = isValid['error']
-            return render_template('invite.html', error=error)
+            return render_template('invite.html', error=error, home=home)
 
     if request.method == "GET":
         # get home

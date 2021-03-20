@@ -16,7 +16,7 @@ if is_prod:
 else:
     app.config.from_envvar("CHOREPOINT_SETTINGS")
 
-print(os.environ.get('MYSQL_HOST'))
+print(current_app.config.get('MYSQL_HOST'))
 
 mysql = MySQL(app)
 login_manager = LoginManager()

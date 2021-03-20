@@ -13,7 +13,7 @@ app = Flask(__name__)
 is_prod = os.environ.get('IS_HEROKU', None)
 
 if is_prod:
-    app.config.from_object('ProdConfig')
+    app.config.from_object('config.ProdConfig')
 else:
     app.config.from_envvar("CHOREPOINT_SETTINGS")
 

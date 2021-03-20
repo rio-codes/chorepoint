@@ -1606,7 +1606,7 @@ def subtractUserPoints(userID):
 @app.route('/admin/resetpassword/<userID>', methods=["GET", "POST"])
 def resetPassword(userID):
 
-    s = cfg.salt
+    s = os.environ.get('SALT')
     user = User.get_user(userID)
     error = None
 
@@ -1685,7 +1685,7 @@ def deleteUser(userID):
 @app.route('/changepassword', methods=["GET", "POST"])
 def changePassword():
 
-    s = cfg.salt
+    s = os.environ.get('SALT')
     user = current_user
     error = None
     passwordRegex = re.compile('[@_!#$%^&*()<>?/\|}{~:]')
@@ -1760,7 +1760,7 @@ def resetPasswordLink(token):
 
     userID = verify_reset_token(token)
     error = None
-    s = cfg.salt
+    s = os.environ.get('SALT')
     passwordRegex = re.compile('[@_!#$%^&*()<>?/\|}{~:]')
 
     user = User.get_user(userID)

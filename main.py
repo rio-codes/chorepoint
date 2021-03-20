@@ -239,7 +239,7 @@ class User(object):
 
         msg = Message()
         msg.subject = "Chorepoint Password Reset"
-        msg.sender = environ.get('MAIL_USERNAME')
+        msg.sender = os.environ.get('MAIL_USERNAME')
         msg.recipients = [user.email]
         msg.html = render_template('reset_email.html',
                                 user=user, 
@@ -247,7 +247,7 @@ class User(object):
         mail.send(msg)
 
     def get_reset_token(self, expires=500):
-        key = environ.get('SECRET_KEY')
+        key = os.environ.get('SECRET_KEY')
         return jwt.encode({'reset_password': self.username,
                            'exp': time.time() + expires},
                            key, algorithm="HS256")
@@ -556,7 +556,7 @@ def load_user(userID):
 
 def verify_reset_token(token):
 
-    key = environ.get('SECRET_KEY')
+    key = os.environ.get('SECRET_KEY')
 
     username = jwt.decode(token, key, algorithms="HS256")['reset_password']
     print ("VERIFYING TOKEN")
@@ -567,7 +567,7 @@ def verify_reset_token(token):
 
 def validateRegistration(displayName, username, homeName, password, email, confirm):
 
-    s = environ.get('SALT')
+    s = os.environ.get('SALT')
     isValid = dict()
     isValid['error'] = None
 
@@ -675,7 +675,7 @@ def bootstrap_css():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
-    s = environ.get('SALT')
+    s = os.environ.get('SALT')
 
     if request.method == "POST":
 
@@ -1495,7 +1495,7 @@ def register():
 @app.route('/invite/<inviteLink>', methods=["GET", "POST"])
 def inviteRegister(inviteLink):
     error = None
-    s = environ.get('SALT')
+    s = os.environ.get('SALT')
 
     if request.method == "POST":
 

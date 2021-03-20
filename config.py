@@ -1,3 +1,5 @@
+import os
+
 class ProdConfig(object):
     MYSQL_HOST = os.environ.get('MYSQL_HOST')
     MYSQL_USER = os.environ.get('MYSQL_USER')

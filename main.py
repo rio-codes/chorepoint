@@ -10,20 +10,24 @@ from config import *
 
 app = Flask(__name__)
 
+# configure app based on environment
+
 is_prod = os.environ.get('IS_HEROKU', None)
 
 if is_prod:
     app.config.from_object('config.ProdConfig')
 else:
-    app.config.from_envvar("CHOREPOINT_SETTINGS")
+    app.config.from_envvar('CHOREPOINT_SETTINGS')
 
-print(app.config.get('MYSQL_HOST'))
+# initialize required modules
 
 mysql = MySQL(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
 mail = Mail(app)
+
+# define classes and functions
 
 class User(object):
     def __init__(self, userID, username, displayName, admin, passwordHash, approvalRequired, points, homeID, is_authenticated, is_active, is_anonymous, email):
@@ -70,7 +74,7 @@ class User(object):
         # get userID for username
         cur.execute("SELECT userID FROM users WHERE username=%s", u)
         userTuple = cur.fetchall()
-        print(userTuple)
+        
         if userTuple != ():
             user = int(((userTuple[0])[0]))
         else:
@@ -143,7 +147,7 @@ class User(object):
         mysql.connection.commit()
 
     def get_id(self):
-        print("get id")
+        
         userID = self.userID
         # return unicode user ID
         return userID
@@ -190,7 +194,7 @@ class User(object):
 
     def change_password(userID, pw_hash):
 
-        print(pw_hash)
+       
         cur = mysql.connection.cursor()
         cur.execute("UPDATE users SET passwordHash='%s' WHERE userID = %s" % (pw_hash, userID))
         mysql.connection.commit()
@@ -231,13 +235,14 @@ class User(object):
 
     def delete_user(userID):
 
-        #deactivate user
+        # deactivate user
         cur = mysql.connection.cursor()
         cur.execute("UPDATE users SET is_authenticated=0, is_active=0 WHERE userID = %s" % (userID))
         mysql.connection.commit()
 
     def send_reset_email(user):
 
+        # send password reset email
         token = user.get_reset_token()
 
         msg = Message()
@@ -250,6 +255,8 @@ class User(object):
         mail.send(msg)
 
     def get_reset_token(self, expires=500):
+
+        # create jwt reset token
         key = os.environ.get('SECRET_KEY')
         return jwt.encode({'reset_password': self.username,
                            'exp': time.time() + expires},
@@ -333,11 +340,6 @@ class Task(object):
     
     def create_new_task(taskName, points, assignedUserID, createdByUserID, frequency, homeID, dueDate, permanent, oneOff):
 
-        print("after called")
-        print(permanent)
-        print(frequency)
-        print(dueDate) 
-
         # initialize sql cursor
         cur = mysql.connection.cursor()
 
@@ -347,12 +349,8 @@ class Task(object):
         newTaskID = int((lastTaskID[0])) + 1
 
         # set and format current date
-
-        
         currentDate = datetime.now()
-        print(currentDate)
         formattedDate = str(currentDate.strftime('%Y-%m-%d'))
-        print(formattedDate)
         dateString = "%Y-%m-%d"
 
         # check if task is permanent
@@ -363,7 +361,6 @@ class Task(object):
 
         # check if task is one-off
         elif oneOff == 1:
-            print(frequency)
 
             # add task to database due on future date
             cur.execute("INSERT INTO tasks (taskID, taskName, points, approved, assignedUserID, createdByUserID, dateCreated, frequency, dueDate, homeID, active, permanent) VALUES (%s, '%s', %s, 0, %s, %s, STR_TO_DATE('%s','%s'), %s, STR_TO_DATE('%s','%s'), %s, 1, 0)" % (newTaskID, str(taskName), points, assignedUserID, createdByUserID, formattedDate, dateString, frequency, dueDate, dateString, homeID))
@@ -374,7 +371,6 @@ class Task(object):
 
             # set and format current date
             currentDate = datetime.now()
-            print(currentDate)
             formattedDate = str(currentDate.strftime('%Y-%m-%d'))
             dateString = "%Y-%m-%d"   
 
@@ -419,12 +415,10 @@ class Home(object):
         u = (adminUserID,)
         cur = mysql.connection.cursor()
 
-        print(u)
         # get home for admin user
         cur.execute("SELECT * FROM homes WHERE adminUserID=%s", u)
         columns = [col[0] for col in cur.description]
         home = [dict(zip(columns, row)) for row in cur.fetchall()]
-        print(home)
 
         # return home object
         self.homeID = home[0]['homeID'] 
@@ -445,7 +439,6 @@ class Home(object):
         cur.execute("SELECT * FROM homes WHERE homeID=%s", h)
         columns = [col[0] for col in cur.description]
         home = [dict(zip(columns, row)) for row in cur.fetchall()]
-        print(home)
 
         # return home object
         self.homeID = home[0]['homeID'] 
@@ -457,6 +450,7 @@ class Home(object):
 
     def generate_invite_link():
 
+        # generate random string for invite link
         randomString = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(10))
         return(randomString)
 
@@ -549,34 +543,30 @@ class Reward(object):
 
 @login_manager.user_loader
 def load_user(userID):
-    print("load_user")
+    # load user function required by login manager module
     try:
         user = User.get_user(userID)
-        print(user.username)
         return User.get_user(userID)
     except:
         return None
 
 def verify_reset_token(token):
 
+    # verify password reset jwt token
     key = os.environ.get('SECRET_KEY')
-
     username = jwt.decode(token, key, algorithms="HS256")['reset_password']
-    print ("VERIFYING TOKEN")
-
     userID = User.get_userID_from_username(username)
-
     return userID
 
 def validateRegistration(displayName, username, homeName, password, email, confirm):
 
+    # initialize required variables
     s = os.environ.get('SALT')
     isValid = dict()
     isValid['error'] = None
 
-
+    # check if display name is a number and escape string
     if displayName.strip().isdigit():
-        print('name is digit')
         isValid['error'] = 'Your name cannot be a number'
         isValid['displayNameString'] = 'invalid'
         isValid['usernameString'] = None
@@ -587,9 +577,9 @@ def validateRegistration(displayName, username, homeName, password, email, confi
     else:
         isValid['displayNameString'] = MySQLdb.escape_string(displayName)
     
+    # check if username is a number or taken and escape string
     isValid['usernameString'] = MySQLdb.escape_string(username)
     if isValid['usernameString'].strip().isdigit():
-        print('un is digit')
         isValid['error']  = 'Your username cannot be a number'
         isValid['usernameString'] = 'invalid'
         isValid['displayNameString'] = None
@@ -599,9 +589,7 @@ def validateRegistration(displayName, username, homeName, password, email, confi
         return isValid
     else:
         isValid['usernameString'] = MySQLdb.escape_string(username)
-        print (isValid['usernameString'])
         isUser = User.get_userID_from_username(isValid['usernameString'])
-        print(isUser)
         if isUser != False:
             isValid['error']  = 'That username is taken'
             isValid['usernameString'] = 'invalid'
@@ -612,7 +600,7 @@ def validateRegistration(displayName, username, homeName, password, email, confi
             isValid['emailString'] = None
             return isValid
 
-    
+    # check if home name is a number and escape string    
     if homeName.strip().isdigit():
         isValid['error']  = 'Your home name cannot be a number'
         isValid['homeNameString'] = 'invalid'
@@ -624,16 +612,17 @@ def validateRegistration(displayName, username, homeName, password, email, confi
     else:
         isValid['homeNameString'] = MySQLdb.escape_string(homeName)
 
+    # set regex strings to validate password and email
     passwordRegex = re.compile('[@_!#$%^&*()<>?/\|}{~:]')
     emailRegex = re.compile('^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$')
 
+    # check password for correct format and return password hash
     if (any(x.isupper() for x in password) 
         and any(x.islower() for x in password) 
         and any(x.isdigit() for x in password) 
         and len(password) >= 10 
         and re.search(passwordRegex, password) != None): 
             pw = (s + password).encode()
-            print (pw)
             isValid['pw_hash'] = hashlib.sha512(pw).hexdigest()
     else:
             isValid['error'] = 'Your password must be at least 10 characters long and contain an uppercase letter, a lowercase letter, and a symbol.'
@@ -644,6 +633,7 @@ def validateRegistration(displayName, username, homeName, password, email, confi
             isValid['emailString'] = None
             return isValid
     
+    # validate email format and escape string
     if (re.search(emailRegex,email)):
         isValid['emailString'] = MySQLdb.escape_string(email) 
     else:
@@ -655,6 +645,7 @@ def validateRegistration(displayName, username, homeName, password, email, confi
         isValid['pw_hash'] = None
         return isValid
     
+    # check if passwords match
     if password != confirm:
         isValid['error'] = 'Passwords do not match.'
         isValid['pw_hash'] = 'invalid'
@@ -748,8 +739,6 @@ def admin():
     # get current home
     home = Home.get_home(adminUser.userID)
 
-    print(home.homeID)
-
     # get tasks data for current home
     homeTasks = []
     homeTasksTuple = Task.get_home_tasks(home.homeID)
@@ -766,7 +755,6 @@ def admin():
         elif thisTask.approved == 1 and thisTask.active ==1:
             pendingTasks.append(thisTask)
     
-    print(pendingTasks)
     # get rewards data for current home
     homeRewards=[]
     homeRewardsTuple = Reward.get_home_rewards(home.homeID)
@@ -786,7 +774,6 @@ def admin():
     # get users for current home
     homeUsers=[]
     homeUsersTuple = User.get_home_users(home.homeID)
-    print(homeUsersTuple)   
     for f in range(len(homeUsersTuple)):
         homeUsers.append(int(((homeUsersTuple[f])[0])))
     
@@ -794,7 +781,6 @@ def admin():
     allUsers=[]
     for g in range(len(homeUsers)):
         thisUser = User.get_user(homeUsers[g])
-        print(thisUser.username)
         allUsers.append(thisUser)
 
     # display admin page with output
@@ -822,7 +808,6 @@ def adminUser(userID):
         elif thisTask.approved == 1 and thisTask.active ==1:
             pendingTasks.append(thisTask)
     
-    print(pendingTasks)
     # get rewards data for current user
     userRewards=[]
     userRewardsTuple = Reward.get_user_rewards(user.userID)
@@ -902,7 +887,7 @@ def createReward(userID):
         # get current user
         user = User.get_user(userID)
 
-        # get reward info from form and user object
+        # get reward info from form and user object and escape string
         rewardName = request.form['rewardName']
         if rewardName.strip().isdigit():
             error = 'Reward name cannot be a number'
@@ -910,6 +895,7 @@ def createReward(userID):
         else:
             rewardNameString = MySQLdb.escape_string(rewardName)
 
+        # check if points are a number
         points = request.form['points']
         if not points.strip().isdigit():
             error = 'Point value must be a number'
@@ -991,7 +977,7 @@ def createTask():
         # get current user
         user = current_user
 
-        # get task info from form and user object
+        # check if tasks are permanent or one-offs
         try:
             permanent = request.form['permanent']
         except:
@@ -1018,6 +1004,7 @@ def createTask():
                 frequency = 0
                 dueDate = request.form['dueDate']
 
+        # get and validate task name, escape and return string
         taskName = request.form['taskName']
         if taskName.strip().isdigit():
             error = 'Task name cannot be a number'
@@ -1025,11 +1012,13 @@ def createTask():
         else:
             taskNameString = MySQLdb.escape_string(taskName)
 
+        # get and validate points
         points = request.form['points']
         if not points.strip().isdigit():
             error = 'Point value must be a number'
             return render_template('newtask.html', error=error)
         
+        # get assigned user ID from dropdown
         assignedUserID = request.form['assignedUserID']
         createdByUserID = user.userID
         
@@ -1038,6 +1027,7 @@ def createTask():
         # create new task for future date
         Task.create_new_task(taskNameString, points, assignedUserID, createdByUserID, frequency, homeID, dueDate, permanent, oneOff)
 
+        # check if self
         if assignedUserID == createdByUserID:
             return redirect(url_for('self'))
         else:
@@ -1078,7 +1068,6 @@ def user():
     # get tasks for current user
     userTasks = []
     userTasksTuple = Task.get_user_tasks(user.userID)
-    print(userTasksTuple)
 
     for a in range(len(userTasksTuple)):
         userTasks.append(int(((userTasksTuple[a])[0])))
@@ -1095,7 +1084,6 @@ def user():
         thisTask = Task.get_task(userTask)
 
         if thisTask.approved == 0 and thisTask.dueDate < currentDate  and thisTask.active == 1:  
-            print(thisTask.taskName)
             Task.create_next_task(thisTask.taskID)          
             Task.delete_task(thisTask.taskID)
             
@@ -1112,8 +1100,6 @@ def user():
             userCompletedTasks.append(thisTask)
         elif thisTask.approved == 0  and thisTask.active == 1 and thisTask.dueDate > currentDate:
             userUpcomingTasks.append(thisTask)
-
-    print(userTasks)
 
     # get rewards for current user
     userRewards = []    
@@ -1226,7 +1212,7 @@ def self():
     for selfTask in selfTasks:
         thisTask = Task.get_task(selfTask)
         thisDate = str(thisTask.dueDate)
-        print(thisDate == permanentDate)
+
         if thisTask.approved == 0  and thisTask.active == 1 and (thisDate == formattedDate or thisDate == permanentDate):        
             selfActiveTasks.append(thisTask)
         elif thisTask.approved == 2  and thisTask.active == 1:
@@ -1236,7 +1222,6 @@ def self():
 
         # delete uncompleted tasks and create new tasks
         if thisTask.approved == 0 and thisTask.dueDate < currentDate  and thisTask.active == 1:  
-            print(thisTask.taskName)
             Task.create_next_task(thisTask.taskID)          
             Task.delete_task(thisTask.taskID)
 
@@ -1271,7 +1256,7 @@ def createSelfTask():
         # get current user
         user = current_user
 
-        # get task info from form and user object
+        # get permanence and frequency data from form
         try:
             permanent = request.form['permanent']
         except:
@@ -1292,14 +1277,12 @@ def createSelfTask():
             frequency = 0
             oneOff = 0
             dueDate = "3000-01-01"
-            print(frequency)
-            print(dueDate)
-        
 
         elif oneOff == "1":
                 frequency = 0
                 dueDate = request.form['dueDate']
-
+        
+        # get and validate task name from form and escape string
         taskName = request.form['taskName']
         if taskName.strip().isDigit():
             error = 'Task name cannot be a number'
@@ -1307,14 +1290,15 @@ def createSelfTask():
         else:
             taskNameString = MySQLdb.escape_string(taskName)
 
+        # get and validate points from form
         points = request.form['points']
         if not points.strip().isdigit():
             error = 'Point value must be a number'
             return render_template('newtask.html', error=error)
 
+        # assign needed variables
         assignedUserID = user.userID
         createdByUserID = user.userID
-        
         homeID = user.homeID
 
         # create new task for future date
@@ -1327,7 +1311,6 @@ def createSelfTask():
 
         # get current user
         user = current_user
-
         allUsers = [user]
 
         # display new task page
@@ -1379,7 +1362,7 @@ def createSelfReward():
         # get current user
         user = current_user
 
-        # get reward info from form and user object
+        # get, validate, and escape reward name
         rewardName = request.form['rewardName']
         if rewardName.strip().isdigit():
             error = 'Reward name cannot be a number'
@@ -1387,6 +1370,7 @@ def createSelfReward():
         else:
             rewardNameString = MySQLdb.escape_string(taskName)
 
+        # get and validate points
         points = request.form['points']
         if not points.strip().isdigit():
             error = 'Point value must be a number'
@@ -1481,11 +1465,9 @@ def register():
         confirm = request.form['confirm']
 
         # if input is valid get values, otherwise return and print error
-
         isValid = validateRegistration(displayName, username, homeName, password, email, confirm)
         if isValid['error'] == None:
             User.create_new_user(isValid['usernameString'], isValid['displayNameString'], isValid['homeNameString'], isValid['pw_hash'], isValid['emailString'])
-            print("creating new user")
             return redirect(url_for('login'))
         else:
             error = isValid['error']
@@ -1517,26 +1499,23 @@ def inviteRegister(inviteLink):
         confirm = request.form['confirm']
         error = None
 
+        # validate input data from form
         isValid = validateRegistration(displayName, username, home.homeName, password, email, confirm)
 
         if isValid['error'] == None:
             User.create_new_user(isValid['usernameString'], isValid['displayNameString'], isValid['homeNameString'], isValid['pw_hash'], isValid['emailString'])
-            print("creating new user")
             return redirect(url_for('login'))
         else:
             error = isValid['error']
             return render_template('invite.html', error=error, home=home)
 
     if request.method == "GET":
-        # get home
+        # get home and admin user
         cur = mysql.connection.cursor()
         i = (inviteLink, )
         cur.execute("SELECT adminUserID FROM homes WHERE inviteLink = %s", i)
         adminUserID = (cur.fetchall()[0])[0]
-        print(adminUserID)
         home = Home.get_home(adminUserID)
-        print("home name from object:")     
-        print (home.homeName)
         user = User.get_user(adminUserID)
         # display register page
         return render_template('invite.html', error=error, user=user, home=home)
@@ -1566,6 +1545,7 @@ def addUserPoints(userID):
         error = None
         points = request.form['points']
 
+        # check if points are too high, if not add points
         if int(points) > 10000:
             error = "you can't add that many points."
             return render_template('addpoints.html', error=error)
@@ -1590,6 +1570,7 @@ def subtractUserPoints(userID):
         error = None
         points = request.form['points']
 
+        # check if points are too low, if not subtact points
         if int(points) > user.points:
             error = "you can't subtract more points than they have."
             return render_template('subtractpoints.html', user=user, error=error)
@@ -1611,9 +1592,12 @@ def resetPassword(userID):
     error = None
 
     if request.method == "POST":
+
+        # get password and confirm data from form
         password = request.form['password']
         confirm = request.form['confirm']
 
+        # check if passwords match
         if password != confirm:
             error = 'Passwords do not match.'
             return render_template('resetpassword.html', user=user, error=error)
@@ -1624,10 +1608,9 @@ def resetPassword(userID):
             cur.execute("SELECT * FROM users WHERE username = %s", u)
             isUser = cur.fetchall()
 
+            # retrieve password hash and change password
             pw = (s + password).encode()
             pw_hash = hashlib.sha512(pw).hexdigest()
-
-            print (pw_hash)
 
             User.change_password(userID, pw_hash)
 
@@ -1648,8 +1631,11 @@ def promoteUser(userID):
     if request.method == "POST":
 
         error = None
+
+        # get new username from form
         newUsername = request.form['username']
 
+        # check if username is taken, if not promote user
         cur = mysql.connection.cursor()
         u = (newUsername,)
         cur.execute("SELECT * FROM users WHERE username = %s", u)
@@ -1685,19 +1671,22 @@ def deleteUser(userID):
 @app.route('/changepassword', methods=["GET", "POST"])
 def changePassword():
 
+    # set required variables to change password
     s = os.environ.get('SALT')
     user = current_user
     error = None
     passwordRegex = re.compile('[@_!#$%^&*()<>?/\|}{~:]')
 
     if request.method == "POST":
+
+        # get password and confirm data from form
         password = request.form['password']
         confirm = request.form['confirm']
 
+        # check if passwords match and validate password
         if password != confirm:
             error = 'Passwords do not match.'
             return render_template('changepassword.html', user=user, error=error)
-
         else:
             if (any(x.isupper() for x in password) 
             and any(x.islower() for x in password) 
@@ -1710,6 +1699,7 @@ def changePassword():
             else:
                 error = 'Your password must be at least 10 characters long and contain an uppercase letter, a lowercase letter, and a symbol.'
 
+            # if password passes tests, change password
             User.change_password(user.userID, pw_hash)
 
             flash("Password was changed.")
@@ -1758,27 +1748,26 @@ def forgotPassword():
 @app.route('/resetpasswordlink/<token>', methods=["GET", "POST"])
 def resetPasswordLink(token):
 
+    # set required variables
     userID = verify_reset_token(token)
     error = None
     s = os.environ.get('SALT')
     passwordRegex = re.compile('[@_!#$%^&*()<>?/\|}{~:]')
-
     user = User.get_user(userID)
 
-    print(user.username)
     if request.method == "POST":
 
         if user == None:
             return render_template('invalidresetlink.html')
 
+        # get password and confirm data from form
         password = request.form['password']
         confirm = request.form['confirm']
 
+        # check if passwords match and validate password, if passes change password
         if password != confirm:
-        
             error = 'Passwords do not match.'
             return render_template('resetpasswordlink.html', user=user, error=error)
-
         elif (any(x.isupper() for x in password) 
             and any(x.islower() for x in password) 
             and any(x.isdigit() for x in password) 
@@ -1802,9 +1791,7 @@ def resetPasswordLink(token):
 def passwordchanged():
 
     if request.method == "GET":     
-
         return render_template('passwordchanged.html')
 
 if __name__ == "__main__":
-    app.config['TRAP_BAD_REQUEST_ERRORS'] = True
     app.run(host="localhost", port=8080, debug=True)
